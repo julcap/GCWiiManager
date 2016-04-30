@@ -29,8 +29,8 @@ class GCWii(Ui_MainWindow,QtGui.QMainWindow):
         self.progressBar_source.setVisible(False)
         self.progressBar_destination.setVisible(False)
         self.label_status.setVisible(False)
-        self.show()
         self.checkAndPrepareDB()
+        self.show()
 
     def updateStatusLabel(self,text,active = True):
         if text:
@@ -68,7 +68,7 @@ class GCWii(Ui_MainWindow,QtGui.QMainWindow):
                     self.threadUpdateList.start()
             else:
                 action = self.msgBox('It seems there is no available game data.<br>Would you like to download it?',
-                                       'If there is data this application can not work properly.')
+                                       'If there is no data this application can not work properly.')
                 if action:
                     self.threadUpdateList.start()
                 else:
@@ -210,8 +210,6 @@ class GCWii(Ui_MainWindow,QtGui.QMainWindow):
         Start thread for copy items from one list to the other
         :return:
         """
-        #print("Copy thread called")
-        msgBox = QtGui.QMessageBox()
         if listName == 'source':
             progressBar = self.progressBar_destination
         elif listName == 'destination':
@@ -221,14 +219,11 @@ class GCWii(Ui_MainWindow,QtGui.QMainWindow):
                 if destinationDict:
                     self.threadCopy.start()
                 else:
-                    msgBox.setText("Missing destination folder")
-                    msgBox.exec_()
+                    self.msgBox("Missing destination folder",None,'message')
             else:
-                msgBox.setText("Missing source folder")
-                msgBox.exec_()
+                self.msgBox("Missing source folder",None,'message')
         else:
-            msgBox.setText("Missing games to copy")
-            msgBox.exec_()
+            self.msgBox("Missing games to copy",None,'message')
 
     def quit(self):
         sys.exit(0)
@@ -268,6 +263,14 @@ class ThreadUpdateList(QtCore.QThread):
 app = QtGui.QApplication(sys.argv)
 main = GCWii()
 sys.exit(app.exec_())
+
+
+""" 
+TODO:
+* Input and output folder validation *
+- They can not be the same directory.
+- If both are empty there is nothing to do beside providing feedback.
+"""
 
 
 
