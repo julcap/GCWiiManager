@@ -1,0 +1,4 @@
+#!/usr/bin/env sh
+
+/usr/bin/python3 /usr/lib/python3/dist-packages/PyQt4/uic/pyuic.py $1 -o /home/jca/Desktop/GCWiiManager/GCWiiMainWindow.py
+
