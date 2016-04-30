@@ -119,4 +119,4 @@ def getPath(code,listName):
     results = str(results[0][0]).split(',')
     return results
 
-print(gamesFoundCount('all'))
+#print(gamesFoundCount('all'))

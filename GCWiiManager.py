@@ -73,13 +73,16 @@ def getGameRegion(code):
 
 # Fetch latest English language game list
 def downloadGameList():
-    print("Downloading the latest version of game list available from: " + URL)
-    result = urllib.request.urlretrieve(URL,gameList)[0]
-    # TODO handle properly variables and language selection for game list
-    return result
+    """
+    Download txt file containing a list of wii/GC code and name in the format CODE = "Name Of Game"
+    :return: 'wiitdb.txt'
+    """
+    if os.path.exists(gameList):
+        os.unlink(gameList)
+    urllib.request.urlretrieve(URL,gameList)
 
 # Populate 'gameTitle' table
-def populateTitleTable(txtdatabase):
+def populateTitleTable(txtdatabase = gameList):
     f=codecs.open(txtdatabase,READ,'utf-8')
     data = f.readlines()
     f.close()
@@ -89,7 +92,7 @@ def populateTitleTable(txtdatabase):
         title = wordpair[1].strip(' ').rstrip()
         gameTitlesInsert(code,title)
 
-# Check suported file extensions
+# Check supported file extensions
 def supportedExtension(filename):
     """ @filename: absolute path to file
         @extension: list of extensions """
@@ -131,6 +134,8 @@ def findSupportedFiles(path):
     else:
         return 0
 
+
+
 def checkDuplicate(file1,file2):
     #print("Checking for duplicate {} and {}".format(file1,file2)) 
     if filecmp.cmp(file1,file2):
@@ -142,35 +147,35 @@ def getFileName(source):
     return os.path.split(source)[1].split('.')[0].lower()
 
 
-def copyFile(source,destination,folderName,fileExtension,gameCode):
-    fileName = getFileName(source)
+def copyFile(inputFile, destination, folderName, fileExtension, gameCode):
+    fileName = getFileName(inputFile)
     if fileExtension == 'ISO':
         if fileName != 'disc2':
             fileName = 'game'
     elif fileExtension == 'WBFS':
         fileName = gameCode
-    absolutePath = os.path.join(destination,folderName,fileName + '.' + fileExtension.lower())
+    outputFile = os.path.join(destination,folderName,fileName + '.' + fileExtension.lower())
     if not os.path.exists(destination):
         os.mkdir(destination)
     if not os.path.exists(os.path.join(destination,folderName)):
         os.mkdir(os.path.join(destination,folderName))
-    if not os.path.exists(absolutePath):
-        # print("Copying {} to {}".format(source,absolutePath))
-        shutil.copy2(source,absolutePath)
+    if not os.path.exists(outputFile):
+        # print("Copying {} to {}".format(inputFile,outputFile))
+        shutil.copy2(inputFile, outputFile)
         return 1
     else:
-        if not checkDuplicate(source,absolutePath) and fileExtension == 'ISO':
+        if not checkDuplicate(inputFile, outputFile) and fileExtension == 'ISO':
             fileName = 'disc2'
-            absolutePath = os.path.join(destination,folderName,fileName + '.' + fileExtension.lower())
-            if os.path.exists(absolutePath):
-                if checkDuplicate(source,absolutePath):
+            outputFile = os.path.join(destination,folderName,fileName + '.' + fileExtension.lower())
+            if os.path.exists(outputFile):
+                if checkDuplicate(inputFile, outputFile):
                     return 0
                 else:
-                    print("Copying {} to {}".format(source,absolutePath))
-                    shutil.copy2(source,absolutePath)
+                    print("Copying {} to {}".format(inputFile, outputFile))
+                    shutil.copy2(inputFile, outputFile)
                     return 1
         else:
-            #print("Skipping {}".format(source))
+            #print("Skipping {}".format(inputFile))
             return 0
     
 def normalizedFolderName(code):
@@ -179,7 +184,7 @@ def normalizedFolderName(code):
     name = ''.join(name)
     return name + " [" + code + "]"
 
-def getLastestAvailableList():
+def downloadGameListAndInitializeDB():
     downloadGameList()
     deleteDB()
     initDB()
@@ -197,7 +202,7 @@ def main():
         else:
             action = "start"
     else:
-        print("Downloading gamelist from: " + URL)
+        print("Downloading game list from: " + URL)
         downloadGameList()
         action = "start"
         lastUpdate = "Null"
@@ -217,8 +222,13 @@ def main():
     # Get location for source where to search for games
     global sourcePath
     sourcePath = getGamesPath()
-    print("Analyzing [{}]  ...  ".format(sourcePath), end = '')
-    files = findSupportedFiles(sourcePath)
+    print("Analyzing [{}]  ...  \n\n".format(sourcePath), end = '')
+    try:
+        files = findSupportedFiles(sourcePath)
+    except PermissionError as err:
+        print(err)
+        sys.exit(1)
+
     print("OK")
     if not files:
         print("No supported files found")

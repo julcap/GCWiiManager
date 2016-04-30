@@ -22,6 +22,7 @@ class GCWii(Ui_MainWindow,QtGui.QMainWindow):
         self.label_boxArtWork.setPixmap(QtGui.QPixmap(str(os.path.join(self.boxArtWork,self.box))))
         self.label_dicArtWork.setPixmap(QtGui.QPixmap(str(os.path.join(self.discArtWork,self.disc))))
         self.threadCopy = ThreadCopy()
+        self.threadUpdateList = ThreadUpdateList()
         self.connect(self.threadCopy, QtCore.SIGNAL('updateList'), self.populateListView)
         self.connect(self.threadCopy, QtCore.SIGNAL('updateProgressBar'), self.updateProgressBar)
         self.connect(self.threadCopy, QtCore.SIGNAL('status'), self.updateStatusLabel)
@@ -29,6 +30,7 @@ class GCWii(Ui_MainWindow,QtGui.QMainWindow):
         self.progressBar_destination.setVisible(False)
         self.label_status.setVisible(False)
         self.show()
+        self.checkAndPrepareDB()
 
     def updateStatusLabel(self,text,active = True):
         if text:
@@ -36,6 +38,46 @@ class GCWii(Ui_MainWindow,QtGui.QMainWindow):
             self.label_status.setText(text)
         else:
             self.label_status.setVisible(False)
+
+    def msgBox(self, text, textInfo = None, type ='y/n'):
+        msgBox = QtGui.QMessageBox()
+        msgBox.setText(text)
+        if textInfo:
+            msgBox.setInformativeText(textInfo)
+        msgBox.setTextFormat(QtCore.Qt.RichText)
+        if type == 'y/n':
+            msgBox.setStandardButtons(msgBox.Yes | msgBox.No)
+            result = msgBox.exec_()
+            if result == msgBox.Yes:
+                return 1
+            elif result == msgBox.No:
+                return 0
+        else:
+            msgBox.exec_()
+
+
+    def checkAndPrepareDB(self):
+        msgBox = QtGui.QMessageBox()
+        try:
+            dbList = gameTitlesCount()
+            if dbList:
+                action = self.msgBox('Current local game list contains {} titles. Would you like to update it?'.format(dbList))
+                if action:
+                    deleteDB()
+                    initDB()
+                    self.threadUpdateList.start()
+            else:
+                action = self.msgBox('It seems there is no available game data.<br>Would you like to download it?',
+                                       'If there is data this application can not work properly.')
+                if action:
+                    self.threadUpdateList.start()
+                else:
+                    sys.exit()
+
+        except sqlite3.OperationalError:
+            initDB()
+            self.checkAndPrepareDB()
+
 
     def updateProgressBar(self,progressBarName,value=0,max=0,active = True):
         if progressBarName == 'destination':
@@ -101,7 +143,7 @@ class GCWii(Ui_MainWindow,QtGui.QMainWindow):
 
     def updateSourceDBTable(self,listOfFoundFiles,listName):
         """
-        Clear table for old itmes and update with new items
+        Clear table for old items and update with new items
         :param listOfFoundFiles:
         :param listName:
         :return:
@@ -123,28 +165,31 @@ class GCWii(Ui_MainWindow,QtGui.QMainWindow):
         if directory == None:
             directory = self.selectDirectory()
         if directory:
-            listOfFoundFiles = findSupportedFiles(directory)
-            gamesDict = self.getGamesDict(listOfFoundFiles)
-            items = self.viewData(gamesDict)
-            if listName == 'source':
-                self.label_source.setText('Source: ' + directory)
-                global sourcePath
-                sourcePath = directory
-                global sourceDict
-                sourceDict = gamesDict
-                self.updateSourceDBTable(listOfFoundFiles,'source')
-                self.listView_source.setModel(items)
-                self.listView_source.setEditTriggers(QtGui.QAbstractItemView.NoEditTriggers)
-            elif  listName == 'destination':
-                self.label_destination.setText('Destination: ' + directory)
-                global destinationPath
-                destinationPath = directory
-                self.updateSourceDBTable(listOfFoundFiles,'destination')
-                global destinationDict
-                destinationDict = gamesDict
-                self.listView_destination.setModel(items)
-                self.listView_source.setEditTriggers(QtGui.QAbstractItemView.NoEditTriggers)
+            try:
+                listOfFoundFiles = findSupportedFiles(directory)
 
+                gamesDict = self.getGamesDict(listOfFoundFiles)
+                items = self.viewData(gamesDict)
+                if listName == 'source':
+                    self.label_source.setText('Source: ' + directory)
+                    global sourcePath
+                    sourcePath = directory
+                    global sourceDict
+                    sourceDict = gamesDict
+                    self.updateSourceDBTable(listOfFoundFiles,'source')
+                    self.listView_source.setModel(items)
+                    self.listView_source.setEditTriggers(QtGui.QAbstractItemView.NoEditTriggers)
+                elif  listName == 'destination':
+                    self.label_destination.setText('Destination: ' + directory)
+                    global destinationPath
+                    destinationPath = directory
+                    self.updateSourceDBTable(listOfFoundFiles,'destination')
+                    global destinationDict
+                    destinationDict = gamesDict
+                    self.listView_destination.setModel(items)
+                    self.listView_source.setEditTriggers(QtGui.QAbstractItemView.NoEditTriggers)
+            except PermissionError as err:
+                self.msgBox('You do not have permission to read the source directory selected.', str(err), 'message')
 
     def getGamesDict(self,listOfFoundFiles = []):
         """
@@ -197,7 +242,6 @@ class ThreadCopy(QtCore.QThread):
         count = 0
         self.emit(QtCore.SIGNAL('updateProgressBar'),'destination')
         for code in sourceDict.keys():
-            #print('Howdy ..., this is {},item number {}.'.format(code,count))
             filePath = getPath(code,listName)
             for file in filePath:
                 count += 1
@@ -212,6 +256,14 @@ class ThreadCopy(QtCore.QThread):
 
     def run(self):
         self.export()
+
+class ThreadUpdateList(QtCore.QThread):
+    def __init__(self,parent = None):
+        super(ThreadUpdateList,self).__init__(parent)
+
+    def run(self):
+        downloadGameList()
+        populateTitleTable()
 
 app = QtGui.QApplication(sys.argv)
 main = GCWii()
