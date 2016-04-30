@@ -137,7 +137,6 @@ def findSupportedFiles(path):
 
 
 def checkDuplicate(file1,file2):
-    #print("Checking for duplicate {} and {}".format(file1,file2)) 
     if filecmp.cmp(file1,file2):
         return 1
     else:

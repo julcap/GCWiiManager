@@ -118,5 +118,3 @@ def getPath(code,listName):
     conn.close()
     results = str(results[0][0]).split(',')
     return results
-
-#print(gamesFoundCount('all'))

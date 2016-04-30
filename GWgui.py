@@ -265,7 +265,7 @@ main = GCWii()
 sys.exit(app.exec_())
 
 
-""" 
+"""
 TODO:
 * Input and output folder validation *
 - They can not be the same directory.
