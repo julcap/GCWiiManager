@@ -146,7 +146,7 @@ def getFileName(source):
     return os.path.split(source)[1].split('.')[0].lower()
 
 
-def copyFile(inputFile, destination, folderName, fileExtension, gameCode):
+def getOutputFilePath(inputFile, destination, folderName, fileExtension, gameCode):
     fileName = getFileName(inputFile)
     if fileExtension == 'ISO':
         if fileName != 'disc2':
@@ -160,8 +160,8 @@ def copyFile(inputFile, destination, folderName, fileExtension, gameCode):
         os.mkdir(os.path.join(destination,folderName))
     if not os.path.exists(outputFile):
         # print("Copying {} to {}".format(inputFile,outputFile))
-        shutil.copy2(inputFile, outputFile)
-        return 1
+        #shutil.copy2(inputFile, outputFile)
+        return outputFile
     else:
         if not checkDuplicate(inputFile, outputFile) and fileExtension == 'ISO':
             fileName = 'disc2'
@@ -171,8 +171,8 @@ def copyFile(inputFile, destination, folderName, fileExtension, gameCode):
                     return 0
                 else:
                     print("Copying {} to {}".format(inputFile, outputFile))
-                    shutil.copy2(inputFile, outputFile)
-                    return 1
+                    #shutil.copy2(inputFile, outputFile)
+                    return outputFile
         else:
             #print("Skipping {}".format(inputFile))
             return 0
@@ -265,15 +265,16 @@ def main():
             for row in getGameFound(extension):
                 count += 1
                 code = row[0]
-                source = row[1]
+                inputFile = row[1]
                 title = getTitle(code)
                 folderName = normalizedFolderName(code)
-                status = copyFile(source,destinationPath,folderName,extension,code)
-                if status:
-                    print("[{}/{}] '{}' '{}' '{}' exported successfully.".format(count,counter.get('found'),source,title,code))
+                outputFile = getOutputFilePath(inputFile, destinationPath, folderName, extension, code)
+                if outputFile:
+                    shutil.copy2(inputFile, outputFile)
+                    print("[{}/{}] '{}' '{}' '{}' exported successfully.".format(count,counter.get('found'),inputFile,title,code))
                     counter[extension + '-copied'] += 1
-                elif not status:
-                    print("[{}/{}] Skipping '{}' '{}'".format(count,counter.get('found'),source,title))
+                else:
+                    print("[{}/{}] Skipping '{}' '{}'".format(count,counter.get('found'),inputFile,title))
                                                
     for extension in supportedFileExtensions:
         if counter.get(extension):

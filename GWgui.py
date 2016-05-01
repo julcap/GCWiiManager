@@ -26,7 +26,7 @@ class GCWii(Ui_MainWindow,QtGui.QMainWindow):
         self.connect(self.threadCopy, QtCore.SIGNAL('updateList'), self.populateListView)
         self.connect(self.threadCopy, QtCore.SIGNAL('updateProgressBar'), self.updateProgressBar)
         self.connect(self.threadCopy, QtCore.SIGNAL('status'), self.updateStatusLabel)
-        self.progressBar_source.setVisible(False)
+        self.progressBar_fileProgress.setVisible(False)
         self.progressBar_destination.setVisible(False)
         self.label_status.setVisible(False)
         self.checkAndPrepareDB()
@@ -80,10 +80,11 @@ class GCWii(Ui_MainWindow,QtGui.QMainWindow):
 
 
     def updateProgressBar(self,progressBarName,value=0,max=0,active = True):
+        #print("DEBUG {} {} {} {} ".format(progressBarName,value,max,active))
         if progressBarName == 'destination':
             progressBar = self.progressBar_destination
-        elif progressBarName == 'source':
-            progressBar = self.progressBar_source
+        elif progressBarName == 'fileProgress':
+            progressBar = self.progressBar_fileProgress
         progressBar.setVisible(active)
         if max == 0:
             value = 0
@@ -122,7 +123,7 @@ class GCWii(Ui_MainWindow,QtGui.QMainWindow):
 
     def selectDirectory(self):
         """
-        Interactive Dicrectory selection
+        Interactive Directory selection
         :return: valid path
         """
         self.fileDialog = QtGui.QFileDialog.getExistingDirectory(self)
@@ -157,7 +158,7 @@ class GCWii(Ui_MainWindow,QtGui.QMainWindow):
 
     def populateListView(self,listName,directory = None):
         """
-        Populate list with the items found in a dicrectory. Update global path  and dict of files.
+        Populate list with the items found in a directory. Update global path  and dict of files.
         :param listName: listWidget name
         :param directory:
 
@@ -212,12 +213,15 @@ class GCWii(Ui_MainWindow,QtGui.QMainWindow):
         """
         if listName == 'source':
             progressBar = self.progressBar_destination
-        elif listName == 'destination':
-            progressBar = self.progressBar_source
+        # elif listName == 'destination':
+        #     progressBar = self.progressBar_fileProgress
         if sourceDict:
             if sourcePath:
                 if destinationDict:
-                    self.threadCopy.start()
+                    if destinationPath == sourcePath:
+                        self.msgBox("Source and destination should not be the same directory.",None,'message')
+                    else:
+                        self.threadCopy.start()
                 else:
                     self.msgBox("Missing destination folder",None,'message')
             else:
@@ -232,18 +236,31 @@ class ThreadCopy(QtCore.QThread):
     def __init__(self,parent = None):
         super(ThreadCopy,self).__init__(parent)
 
+    def updateFileProgress(self,progressBarName,value,max,active = True):
+        #print("DEBUG: {} {} {} {} ".format(progressBarName,value,max,active))
+        self.emit(QtCore.SIGNAL('updateProgressBar'),progressBarName,value,max,active)
+
+
     def export(self,listName='source'):
         items = len(sourceDict)
         count = 0
         self.emit(QtCore.SIGNAL('updateProgressBar'),'destination')
         for code in sourceDict.keys():
             filePath = getPath(code,listName)
-            for file in filePath:
+            for inputFile in filePath:
                 count += 1
-                extension = (os.path.splitext(file))[1].lstrip('.').upper()
-                self.emit(QtCore.SIGNAL('status'),"Exporting ../{}".format(os.path.basename(file)))
-                copyFile(file,destinationPath,normalizedFolderName(code),extension,code)
+                extension = (os.path.splitext(inputFile))[1].lstrip('.').upper()
+                folderName = normalizedFolderName(code)
+                self.emit(QtCore.SIGNAL('status'),"Exporting ../{}".format(os.path.basename(inputFile)))
+                outputFile = getOutputFilePath(inputFile, destinationPath, folderName, extension, code)
+                if outputFile:
+                    self.threadFileProgress = ThreadUpdateFileProgress(inputFile, outputFile)
+                    self.connect(self.threadFileProgress, QtCore.SIGNAL('updateFileBar'), self.updateFileProgress)
+                    self.threadFileProgress.start()
+                    shutil.copy2(inputFile,outputFile)
                 self.emit(QtCore.SIGNAL('updateProgressBar'),'destination',count,items)
+                while self.threadFileProgress.isRunning():
+                    time.sleep(0.1)
 
         self.emit(QtCore.SIGNAL('updateProgressBar'),'destination',0,0,False)
         self.emit(QtCore.SIGNAL('status'),"")
@@ -260,18 +277,32 @@ class ThreadUpdateList(QtCore.QThread):
         downloadGameList()
         populateTitleTable()
 
+class ThreadUpdateFileProgress(QtCore.QThread):
+    def __init__(self,inputFile = None, outputFile = None):
+        super(ThreadUpdateFileProgress,self).__init__()
+        self.inputFile = inputFile
+        self.outputFile = outputFile
+
+    def updateProgress(self):
+        inputSize = os.path.getsize(self.inputFile)
+        while True:
+            try:
+                outputSize = os.path.getsize(self.outputFile)
+                self.emit(QtCore.SIGNAL('updateFileBar'),'fileProgress',outputSize,inputSize)
+                time.sleep(0.1)
+                if inputSize == outputSize:
+                    break
+            except FileNotFoundError:
+                time.sleep(0.1)
+        self.emit(QtCore.SIGNAL('updateFileBar'),'fileProgress',0,0,False)
+
+    def run(self):
+        self.updateProgress()
+
+
+
 app = QtGui.QApplication(sys.argv)
 main = GCWii()
 sys.exit(app.exec_())
-
-
-"""
-TODO:
-* Input and output folder validation *
-- They can not be the same directory.
-- If both are empty there is nothing to do beside providing feedback.
-"""
-
-
 
 
