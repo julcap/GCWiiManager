@@ -2,6 +2,7 @@ import sys,time
 from PyQt4 import QtCore, QtGui
 from GCWiiManager import *
 from GWdb import *
+import gametdb
 from GCWiiMainWindow import Ui_MainWindow
 
 class GCWii(Ui_MainWindow,QtGui.QMainWindow):
@@ -30,6 +31,7 @@ class GCWii(Ui_MainWindow,QtGui.QMainWindow):
         self.progressBar_destination.setVisible(False)
         self.label_status.setVisible(False)
         self.checkAndPrepareDB()
+        self.gametdb = gametdb.GameTDB()
         self.show()
 
     def updateStatusLabel(self,text,active = True):
@@ -99,6 +101,7 @@ class GCWii(Ui_MainWindow,QtGui.QMainWindow):
             disc = str(os.path.join(self.discArtWork,self.disc))
         else:
             region = getGameRegion(code)
+            self.gametdb.getArtWork(region,code)
             disc = str(os.path.join(self.discArtWork,region,code + ".png"))
             box = str(os.path.join(self.boxArtWork,region,code + ".png"))
         self.label_boxArtWork.setPixmap(QtGui.QPixmap(box))
