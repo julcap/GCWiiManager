@@ -9,7 +9,6 @@ import datetime, re
 import codecs, urllib.request
 import shutil
 import filecmp
-import lzma
 from GWcli import *
 from GWdb import *
 
@@ -80,6 +79,7 @@ def downloadGameList():
     if os.path.exists(gameList):
         os.unlink(gameList)
     urllib.request.urlretrieve(URL,gameList)
+
 
 # Populate 'gameTitle' table
 def populateTitleTable(txtdatabase = gameList):
@@ -182,12 +182,6 @@ def normalizedFolderName(code):
     name = re.findall('[A-Za-z0-9 \'\-!?\(\)\.é]',name)
     name = ''.join(name)
     return name + " [" + code + "]"
-
-def downloadGameListAndInitializeDB():
-    downloadGameList()
-    deleteDB()
-    initDB()
-    populateTitleTable(gameList)
 
 def main():    
     # Get game names data into DB
