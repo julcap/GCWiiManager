@@ -5,11 +5,13 @@ import os,re
 BASE_URL = 'http://www.gametdb.com'
 DISC_PATH =  os.path.join(os.getcwd(),'wii','disc')
 COVER3D_PATH = os.path.join(os.getcwd(),'wii','cover3D')
+ART_URL = 'http://art.gametdb.com/wii'
 
 class GameTDB():
     def __init__(self):
         self.gameList = 'wiitdb.txt'
         self.downloads = 'Wii/Downloads'
+
     def getGameList(self,language = 'EN'):
         gamesDict = dict()
         params =  { 'LANG' : language}
@@ -22,35 +24,34 @@ class GameTDB():
             gamesDict[code] = title
         return gamesDict
 
-    def getArtWorks(self,language = None, cover3D = False, disc = False):
-        if language == None:
+    def getArtWork(self,language = None,code = None, cover3D = True, disc = True):
+        """
+        sample url request http://art.gametdb.com/wii/cover/US/S72E01.png
+        :param language: EN, JA, FR, DE, ES, IT, NL, PT, ZHTW, ZHCN, KO
+        :param code: e.g. S72E01
+        :param cover3D:
+        :param disc:
+        :return:
+        """
+        if language == None or code == None:
             return 0
         else:
-            params = { 'LANG' : language }
-            data = urllib.parse.urlencode(params)
-            data = data.encode('utf-8')
-            webData = urllib.request.urlopen(BASE_URL + '/' + self.downloads,data)
-            if disc:
-                self.getDiscArtWork(language,self.getURL('disc',language,webData))
-            if cover3D:
-                self.getCover3DArtWork(language,self.getURL('cover3D',language,webData))
+            try:
+                if disc:
+                    outputDir = os.path.join(DISC_PATH,language)
+                    urllib.request.urlretrieve(ART_URL + '/disc/'+ language + '/' + code +'.png',
+                                               os.path.join(outputDir,code + '.png'))
+                if cover3D:
+                    outputDir = os.path.join(COVER3D_PATH, language)
+                    urllib.request.urlretrieve(ART_URL + '/cover3D/' + language + '/' + code + '.png',
+                                               os.path.join(outputDir, code + '.png'))
+            except FileNotFoundError:
+                os.mkdir(outputDir)
+                self.getArtWork(language,code,cover3D,disc)
             else:
                 return 0
 
-    def getURL(self,item,language,webData):
-        for i in webData:
-            result = re.findall('.+GameTDB-wii_' + item + '-' + language ,i.decode('utf-8'))
-            for i in str(result).split('href=')[1:]:
-                match = re.findall('.+GameTDB-wii_' + item +'-' + language +'.+', str(i.split(' ')[:1]))
-                if match:
-                    return str(match).strip('[\'\\]\"')
 
-    def getDiscArtWork(self,language,URL):
-        print(URL)
-
-    def getCover3DArtWork(self,language,URL):
-        print(URL)
-
-gametdb = GameTDB()
-gamelist = gametdb.getArtWorks('EN',True,True)
+#gametdb = GameTDB()
+#gamelist = gametdb.getArtWork('US','S72E01')
 
