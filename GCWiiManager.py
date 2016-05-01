@@ -80,6 +80,7 @@ def downloadGameList():
         os.unlink(gameList)
     urllib.request.urlretrieve(URL,gameList)
 
+# TODO: deprecate downloadGameList. GameTDB class gets the job done more efficiently. Update populateTitleTable accordingly.
 
 # Populate 'gameTitle' table
 def populateTitleTable(txtdatabase = gameList):
