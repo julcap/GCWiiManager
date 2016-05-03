@@ -96,14 +96,14 @@ class GCWii(Ui_MainWindow,QtGui.QMainWindow):
 
     def updateArtWork(self,list):
         code = self.getSelection(list)
-        if code == '0000':
-            box = str(os.path.join(self.boxArtWork,self.box))
-            disc = str(os.path.join(self.discArtWork,self.disc))
-        else:
+        box = str(os.path.join(self.boxArtWork,self.box))
+        disc = str(os.path.join(self.discArtWork,self.disc))
+        if code != '0000':
             region = getGameRegion(code)
-            self.gametdb.getArtWork(region,code)
-            disc = str(os.path.join(self.discArtWork,region,code + ".png"))
-            box = str(os.path.join(self.boxArtWork,region,code + ".png"))
+            if (self.gametdb.getArtWork(region,code)):
+                time.sleep(0.5)
+                disc = str(os.path.join(self.discArtWork,region,code + ".png"))
+                box = str(os.path.join(self.boxArtWork,region,code + ".png"))
         self.label_boxArtWork.setPixmap(QtGui.QPixmap(box))
         self.label_dicArtWork.setPixmap(QtGui.QPixmap(disc))
 

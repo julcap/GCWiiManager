@@ -54,7 +54,7 @@ def getGameRegion(code):
                 'F' : 'FR',
                 'I' : 'IT',
                 'J' : 'JA',
-                'K' : '',
+                'K' : 'KO',
                 'L' : '',
                 'M' : '',
                 'N' : '',

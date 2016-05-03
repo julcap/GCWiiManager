@@ -1,5 +1,4 @@
-import urllib.request
-import urllib.parse
+import urllib.request,urllib.parse,urllib.error
 import os
 
 BASE_URL = 'http://www.gametdb.com'
@@ -36,19 +35,28 @@ class GameTDB():
             return 0
         else:
             try:
+                status = 0
                 if disc:
                     outputDir = os.path.join(DISC_PATH,language)
+                    if not outputDir:
+                        os.mkdir(outputDir)
                     outputFile = os.path.join(outputDir,code + '.png')
                     if not os.path.exists(outputFile):
                         urllib.request.urlretrieve(ART_URL + '/disc/'+ language + '/' + code +'.png', outputFile)
+                    status = 1
                 if cover3D:
                     outputDir = os.path.join(COVER3D_PATH, language)
+                    if not outputDir:
+                        os.mkdir(outputDir)
                     outputFile = os.path.join(outputDir, code + '.png')
-                    urllib.request.urlretrieve(ART_URL + '/cover3D/' + language + '/' + code + '.png',outputFile)
-            except FileNotFoundError:
-                os.mkdir(outputDir)
-                self.getArtWork(language,code,cover3D,disc)
-            else:
+                    if not os.path.exists(outputFile):
+                        urllib.request.urlretrieve(ART_URL + '/cover3D/' + language + '/' + code + '.png',outputFile)
+                    status = 1
+                return status
+            # Report error if there is no connection to the internet.
+            except urllib.error.URLError as e:
+                #print("Not able to open url: {}".format(e))
+                # TODO: Update label to inform internet connection problems
                 return 0
 
 
