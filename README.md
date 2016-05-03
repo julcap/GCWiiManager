@@ -1,6 +1,7 @@
 # GCWiiManager
 
 A simple Wii and Gamecube backup manager.
+
 Files supported: ISO, WBFS.
 
 Requirements:
