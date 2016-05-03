@@ -71,27 +71,31 @@ def getGameRegion(code):
 
 
 # Fetch latest English language game list
-def downloadGameList():
-    """
-    Download txt file containing a list of wii/GC code and name in the format CODE = "Name Of Game"
-    :return: 'wiitdb.txt'
-    """
-    if os.path.exists(gameList):
-        os.unlink(gameList)
-    urllib.request.urlretrieve(URL,gameList)
+#def downloadGameList():
+#    """
+#    Download txt file containing a list of wii/GC code and name in the format CODE = "Name Of Game"
+#    :return: 'wiitdb.txt'
+#    """
+#    if os.path.exists(gameList):
+#        os.unlink(gameList)
+#    urllib.request.urlretrieve(URL,gameList)
 
 # TODO: deprecate downloadGameList. GameTDB class gets the job done more efficiently. Update populateTitleTable accordingly.
 
 # Populate 'gameTitle' table
-def populateTitleTable(txtdatabase = gameList):
-    f=codecs.open(txtdatabase,READ,'utf-8')
-    data = f.readlines()
-    f.close()
-    for line in data:
-        wordpair = line.split(sep='=')
-        code = wordpair[0].strip(' ')
-        title = wordpair[1].strip(' ').rstrip()
-        gameTitlesInsert(code,title)
+#def populateTitleTable(txtdatabase = gameList):
+#    f=codecs.open(txtdatabase,READ,'utf-8')
+#    data = f.readlines()
+#    f.close()
+#    for line in data:
+#        wordpair = line.split(sep='=')
+#        code = wordpair[0].strip(' ')
+#        title = wordpair[1].strip(' ').rstrip()
+#        gameTitlesInsert(code,title)
+def populateTitlesTable(titlesDict):
+    flushTable('gameTitles',None)
+    for code in titlesDict:
+        gameTitlesInsert(code,titlesDict[code])
 
 # Check supported file extensions
 def supportedExtension(filename):

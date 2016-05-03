@@ -40,7 +40,10 @@ def flushTables():
 def flushTable(tableName,listName):
     conn = sqlite3.connect(database)
     cursor = conn.cursor()
-    qry = "DELETE FROM {} where listName='{}'".format(tableName,listName)
+    if listName == None:
+        qry = "DELETE FROM {}".format(tableName)
+    else:
+        qry = "DELETE FROM {} where listName='{}'".format(tableName,listName)
     cursor.execute(qry)
     conn.commit()
     conn.close()

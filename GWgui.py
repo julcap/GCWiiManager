@@ -100,10 +100,10 @@ class GCWii(Ui_MainWindow,QtGui.QMainWindow):
         disc = str(os.path.join(self.discArtWork,self.disc))
         if code != '0000':
             region = getGameRegion(code)
-            if (self.gametdb.getArtWork(region,code)):
-                time.sleep(0.5)
-                disc = str(os.path.join(self.discArtWork,region,code + ".png"))
+            if (self.gametdb.getArtWork(region,code,True,None)):
                 box = str(os.path.join(self.boxArtWork,region,code + ".png"))
+            if (self.gametdb.getArtWork(region,code,None,True)):
+                disc= str(os.path.join(self.discArtWork,region,code + ".png"))
         self.label_boxArtWork.setPixmap(QtGui.QPixmap(box))
         self.label_dicArtWork.setPixmap(QtGui.QPixmap(disc))
 
@@ -206,7 +206,7 @@ class GCWii(Ui_MainWindow,QtGui.QMainWindow):
                 gamesDict[code] = getTitle(code)
             return gamesDict
         else:
-            gamesDict = { '0000' : 'Empty'}
+            gamesDict = { '0000' : 'Folder is empty'}
             return gamesDict
 
     def exportAll(self,listName='source'):
@@ -277,8 +277,11 @@ class ThreadUpdateList(QtCore.QThread):
         super(ThreadUpdateList,self).__init__(parent)
 
     def run(self):
-        downloadGameList()
-        populateTitleTable()
+        titles = gametdb.GameTDB()
+        titlesDict = titles.getGameList()
+        if titlesDict:
+            for code in titlesDict:
+                gameTitlesInsert(code,titlesDict[code])
 
 class ThreadUpdateFileProgress(QtCore.QThread):
     def __init__(self,inputFile = None, outputFile = None):

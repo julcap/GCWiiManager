@@ -38,7 +38,7 @@ class GameTDB():
                 status = 0
                 if disc:
                     outputDir = os.path.join(DISC_PATH,language)
-                    if not outputDir:
+                    if not os.path.exists(outputDir):
                         os.mkdir(outputDir)
                     outputFile = os.path.join(outputDir,code + '.png')
                     if not os.path.exists(outputFile):
@@ -46,7 +46,7 @@ class GameTDB():
                     status = 1
                 if cover3D:
                     outputDir = os.path.join(COVER3D_PATH, language)
-                    if not outputDir:
+                    if not os.path.exists(outputDir):
                         os.mkdir(outputDir)
                     outputFile = os.path.join(outputDir, code + '.png')
                     if not os.path.exists(outputFile):
