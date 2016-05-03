@@ -21,22 +21,6 @@ def initDB():
     conn.execute(qry)
     conn.close()
 
-def flushTable(tableName):
-    conn = sqlite3.connect(database)
-    cursor = conn.cursor()
-    qry = "DELETE FROM " + tableName
-    cursor.execute(qry)
-    conn.commit()
-    conn.close()
-
-def flushTables():
-    conn = sqlite3.connect(database)
-    cursor = conn.cursor()
-    qry = "DELETE FROM gamesFound"
-    cursor.execute(qry)
-    conn.commit()
-    conn.close()
-
 def flushTable(tableName,listName):
     conn = sqlite3.connect(database)
     cursor = conn.cursor()

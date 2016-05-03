@@ -6,7 +6,7 @@
 
 import sys, os
 import datetime, re
-import codecs, urllib.request
+import gametdb
 import shutil
 import filecmp
 from GWcli import *
@@ -16,7 +16,7 @@ from GWdb import *
 # Some globals
 gameList = 'wiitdb.txt'
 URL = 'http://www.gametdb.com/wiitdb.txt?LANG=EN'
-supportedFileExtensions = ['ISO','WBFS']
+supportedFileExtensions = ('ISO','WBFS')
 sourcePath = ''
 sourceDict = {}
 destinationPath = ''
@@ -69,29 +69,6 @@ def getGameRegion(code):
         return region.get(list(code)[3])
     else: return 'EN'
 
-
-# Fetch latest English language game list
-#def downloadGameList():
-#    """
-#    Download txt file containing a list of wii/GC code and name in the format CODE = "Name Of Game"
-#    :return: 'wiitdb.txt'
-#    """
-#    if os.path.exists(gameList):
-#        os.unlink(gameList)
-#    urllib.request.urlretrieve(URL,gameList)
-
-# TODO: deprecate downloadGameList. GameTDB class gets the job done more efficiently. Update populateTitleTable accordingly.
-
-# Populate 'gameTitle' table
-#def populateTitleTable(txtdatabase = gameList):
-#    f=codecs.open(txtdatabase,READ,'utf-8')
-#    data = f.readlines()
-#    f.close()
-#    for line in data:
-#        wordpair = line.split(sep='=')
-#        code = wordpair[0].strip(' ')
-#        title = wordpair[1].strip(' ').rstrip()
-#        gameTitlesInsert(code,title)
 def populateTitlesTable(titlesDict):
     flushTable('gameTitles',None)
     for code in titlesDict:
@@ -188,34 +165,27 @@ def normalizedFolderName(code):
     name = ''.join(name)
     return name + " [" + code + "]"
 
-def main():    
-    # Get game names data into DB
-    if os.path.exists(gameList):
-        lastUpdate = datetime.datetime.fromtimestamp(int(os.path.getctime(gameList))).strftime('%Y-%m-%d %H:%M:%S')
-        print("The latest game data is from: " + lastUpdate)
-        if validateYN("Would you like to update game list?"):
-            downloadGameList()
-            deleteDB()
-            action = "reset"
-        else:
-            action = "start"
-    else:
-        print("Downloading game list from: " + URL)
-        downloadGameList()
-        action = "start"
-        lastUpdate = "Null"
-
+def main():
+    gametdbconn = gametdb.GameTDB()
     # Initialize DB
-    initDB()
-    
-    # Populate titles table
-    if action == "reset" or gameTitlesCount() == 0:
-        print("Updating titles database ...")
-        populateTitleTable(gameList)
-    elif action == "start":
-        print("Using stored game list from : " + lastUpdate)
-    # Remove data from previous searches
-    flushTables()
+    if os.path.exists(database):
+        flushTable('gamesFound',None)
+    else:
+        initDB()
+
+    titles =gameTitlesCount()
+    if titles:
+        print("There are currently {} titles in the database.".format(titles))
+        if validateYN("Woud you like to update?"):
+            flushTable('gameTitles',None)
+            # Populate list of games from gametdb.com
+    if gameTitlesCount() == 0:
+        gamesDict = gametdbconn.getGameList()
+        print('Updating list of games with {} titles'.format(len(gamesDict)))
+        populateTitlesTable(gamesDict)
+
+    if gamesFoundCount('all'):
+        flushTable('ganesFound',None)
 
     # Get location for source where to search for games
     global sourcePath
@@ -227,7 +197,6 @@ def main():
         print(err)
         sys.exit(1)
 
-    print("OK")
     if not files:
         print("No supported files found")
         sys.exit(0)
