@@ -1,9 +1,8 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'GCWiiManager_V3.ui'
+# Form implementation generated from reading ui file 'GCWiiManager.ui'
 #
-# Created: Mon Mar 28 10:18:29 2016
-#      by: PyQt4 UI code generator 4.10.4
+# Created by: PyQt4 UI code generator 4.11.4
 #
 # WARNING! All changes made in this file will be lost!
 
@@ -61,6 +60,9 @@ class Ui_MainWindow(object):
         self.label_dicArtWork.setAlignment(QtCore.Qt.AlignCenter)
         self.label_dicArtWork.setObjectName(_fromUtf8("label_dicArtWork"))
         self.horizontalLayout.addWidget(self.label_dicArtWork)
+        self.label_description = QtGui.QLabel(self.centralwidget)
+        self.label_description.setObjectName(_fromUtf8("label_description"))
+        self.horizontalLayout.addWidget(self.label_description)
         self.verticalLayout.addLayout(self.horizontalLayout)
         self.horizontalLayout_5 = QtGui.QHBoxLayout()
         self.horizontalLayout_5.setObjectName(_fromUtf8("horizontalLayout_5"))
@@ -74,6 +76,7 @@ class Ui_MainWindow(object):
         self.horizontalLayout_2 = QtGui.QHBoxLayout()
         self.horizontalLayout_2.setObjectName(_fromUtf8("horizontalLayout_2"))
         self.listView_source = QtGui.QListView(self.centralwidget)
+        self.listView_source.setSelectionMode(QtGui.QAbstractItemView.ExtendedSelection)
         self.listView_source.setObjectName(_fromUtf8("listView_source"))
         self.horizontalLayout_2.addWidget(self.listView_source)
         self.listView_destination = QtGui.QListView(self.centralwidget)
@@ -112,6 +115,7 @@ class Ui_MainWindow(object):
         self.exit_btn.setText(_translate("MainWindow", "Exit", None))
         self.label_boxArtWork.setText(_translate("MainWindow", "Box", None))
         self.label_dicArtWork.setText(_translate("MainWindow", "Disc", None))
+        self.label_description.setText(_translate("MainWindow", "Description", None))
         self.label_source.setText(_translate("MainWindow", "Source:", None))
         self.label_destination.setText(_translate("MainWindow", "Destination:", None))
 

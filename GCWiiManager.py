@@ -167,19 +167,19 @@ def normalizedFolderName(code):
 
 def main():
     gametdbconn = gametdb.GameTDB()
+    titles = gameTitlesCount()
     # Initialize DB
     if os.path.exists(database):
         flushTable('gamesFound',None)
     else:
         initDB()
 
-    titles =gameTitlesCount()
     if titles:
         print("There are currently {} titles in the database.".format(titles))
-        if validateYN("Woud you like to update?"):
+        if validateYN("Would you like to update?"):
             flushTable('gameTitles',None)
             # Populate list of games from gametdb.com
-    if gameTitlesCount() == 0:
+    if titles == 0:
         gamesDict = gametdbconn.getGameList()
         print('Updating list of games with {} titles'.format(len(gamesDict)))
         populateTitlesTable(gamesDict)

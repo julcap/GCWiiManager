@@ -78,6 +78,13 @@
           </property>
          </widget>
         </item>
+        <item>
+         <widget class="QLabel" name="label_description">
+          <property name="text">
+           <string>Description</string>
+          </property>
+         </widget>
+        </item>
        </layout>
       </item>
       <item>
@@ -101,7 +108,11 @@
       <item>
        <layout class="QHBoxLayout" name="horizontalLayout_2">
         <item>
-         <widget class="QListView" name="listView_source"/>
+         <widget class="QListView" name="listView_source">
+          <property name="selectionMode">
+           <enum>QAbstractItemView::ExtendedSelection</enum>
+          </property>
+         </widget>
         </item>
         <item>
          <widget class="QListView" name="listView_destination"/>
@@ -133,7 +144,7 @@
        </widget>
       </item>
       <item>
-       <widget class="QProgressBar" name="progressBar_source">
+       <widget class="QProgressBar" name="progressBar_fileProgress">
         <property name="maximumSize">
          <size>
           <width>16777215</width>
