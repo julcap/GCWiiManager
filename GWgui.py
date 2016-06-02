@@ -22,11 +22,7 @@ class GCWii(Ui_MainWindow,QtGui.QMainWindow):
         self.cancel_btn.clicked.connect(lambda:  print("Hi There"))
         self.label_boxArtWork.setPixmap(QtGui.QPixmap(str(os.path.join(self.boxArtWork,self.box))))
         self.label_dicArtWork.setPixmap(QtGui.QPixmap(str(os.path.join(self.discArtWork,self.disc))))
-        self.threadCopy = ThreadCopy()
         self.threadUpdateList = ThreadUpdateList()
-        self.connect(self.threadCopy, QtCore.SIGNAL('updateList'), self.populateListView)
-        self.connect(self.threadCopy, QtCore.SIGNAL('updateProgressBar'), self.updateProgressBar)
-        self.connect(self.threadCopy, QtCore.SIGNAL('status'), self.updateStatusLabel)
         self.progressBar_fileProgress.setVisible(False)
         self.progressBar_destination.setVisible(False)
         self.label_status.setVisible(False)
@@ -209,21 +205,22 @@ class GCWii(Ui_MainWindow,QtGui.QMainWindow):
             gamesDict = { '0000' : 'Folder is empty'}
             return gamesDict
 
-    def exportAll(self,listName='source'):
+# TODO: pass a list of items, set source list as default with override by user selection. Refactor to exportFiles.
+    def exportAll(self):
         """
         Start thread for copy items from one list to the other
         :return:
         """
-        if listName == 'source':
-            progressBar = self.progressBar_destination
-        # elif listName == 'destination':
-        #     progressBar = self.progressBar_fileProgress
         if sourceDict:
             if sourcePath:
                 if destinationDict:
                     if destinationPath == sourcePath:
                         self.msgBox("Source and destination should not be the same directory.",None,'message')
                     else:
+                        self.threadCopy = ThreadCopy()
+                        self.connect(self.threadCopy, QtCore.SIGNAL('updateList'), self.populateListView)
+                        self.connect(self.threadCopy, QtCore.SIGNAL('updateProgressBar'), self.updateProgressBar)
+                        self.connect(self.threadCopy, QtCore.SIGNAL('status'), self.updateStatusLabel)
                         self.threadCopy.start()
                 else:
                     self.msgBox("Missing destination folder",None,'message')
@@ -257,6 +254,11 @@ class ThreadCopy(QtCore.QThread):
                 self.emit(QtCore.SIGNAL('status'),"Exporting ../{}".format(os.path.basename(inputFile)))
                 outputFile = getOutputFilePath(inputFile, destinationPath, folderName, extension, code)
                 if outputFile:
+                    ### DEBUG ###
+                    print(filePath)
+                    print(inputFile)
+                    print(outputFile)
+                    ###
                     self.threadFileProgress = ThreadUpdateFileProgress(inputFile, outputFile)
                     self.connect(self.threadFileProgress, QtCore.SIGNAL('updateFileBar'), self.updateFileProgress)
                     self.threadFileProgress.start()
