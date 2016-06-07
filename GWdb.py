@@ -97,17 +97,13 @@ def getFoundTitles():
     conn.close()
     return results
 
-
-# PROBLEM!: When the file name contains a commas "getPath()" splits the name
-# in a list e.g ['/Users/jca/PycharmProjects/ISO/Pac-Man World 2 (Europe) (En', 'Fr', 'De', 'Es', 'It).iso']"
-
 def getPath(code,listName):
+    results = list()
     conn = connectDB()
-    qry = """ SELECT group_concat(path) from gamesFound where code='{}' and listName='{}'""".format(code,listName)
-    conn.execute(qry)
-    results = conn.fetchall()
+    qry = """ SELECT path from gamesFound where code='{}' and listName='{}'""".format(code,listName)
+    for row in conn.execute(qry):
+        results.append(row[0])
     conn.close()
-    results = str(results[0][0]).split(',')
     return results
 
 #print(getPath('GP2P69','source'))
