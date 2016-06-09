@@ -77,6 +77,15 @@ def getTitle(code):
     conn.close()
     return results[0][0]
 
+def getCode(title):
+    conn = connectDB()
+    qry = 'SELECT code FROM gameTitles WHERE title="{}"'.format(title)
+    conn.execute(qry)
+    results = conn.fetchall()
+    conn.close()
+    return results[0][0]
+
+
 def getGameFound(extension='all',listName='source'):
     if extension == 'all':
         extension = "fileType like '%'"

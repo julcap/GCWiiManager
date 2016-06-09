@@ -19,6 +19,7 @@ class GCWii(Ui_MainWindow,QtGui.QMainWindow):
         self.listView_source.clicked.connect(lambda: self.updateArtWork('source'))
         self.listView_destination.clicked.connect(lambda: self.updateArtWork('destination'))
         self.exit_btn.clicked.connect(lambda: self.quit())
+        self.exportSelected_btn.clicked.connect(lambda : self.exportSelection())
         self.cancel_btn.clicked.connect(lambda:  print("Hi There"))
         self.label_boxArtWork.setPixmap(QtGui.QPixmap(str(os.path.join(self.boxArtWork,self.box))))
         self.label_dicArtWork.setPixmap(QtGui.QPixmap(str(os.path.join(self.discArtWork,self.disc))))
@@ -29,6 +30,13 @@ class GCWii(Ui_MainWindow,QtGui.QMainWindow):
         self.checkAndPrepareDB()
         self.gametdb = gametdb.GameTDB()
         self.show()
+
+    def exportSelection(self,listName = 'source'):
+        results = list()
+        for index in self.listView_source.selectedIndexes():
+            results.append(getCode(QtCore.QModelIndex.data(index)))
+        return results
+
 
     def updateStatusLabel(self,text,active = True):
         if text:
