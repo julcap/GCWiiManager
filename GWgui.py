@@ -334,7 +334,6 @@ class ThreadUpdateFileProgress(QtCore.QThread):
         self.updateProgress()
 
 
-
 app = QtGui.QApplication(sys.argv)
 main = GCWii()
 sys.exit(app.exec_())
