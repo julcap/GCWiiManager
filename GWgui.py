@@ -32,11 +32,22 @@ class GCWii(Ui_MainWindow,QtGui.QMainWindow):
         self.show()
 
     def exportSelection(self,listName = 'source'):
-        results = list()
+        results = dict()
+        #print(sourceDict)
         for index in self.listView_source.selectedIndexes():
-            results.append(getCode(QtCore.QModelIndex.data(index)))
-        return results
+            title = QtCore.QModelIndex.data(index)
+            for key in sourceDict.keys():
+                if sourceDict[key] == title:
+                    results[key] = title
+        global currentSelection
+        currentSelection = results
+        print(currentSelection)
+        self.export()
 
+    def exportAll(self):
+        global currentSelection
+        currentSelection = None
+        self.export()
 
     def updateStatusLabel(self,text,active = True):
         if text:
@@ -214,7 +225,7 @@ class GCWii(Ui_MainWindow,QtGui.QMainWindow):
             return gamesDict
 
 # TODO: pass a list of items, set source list as default with override by user selection. Refactor to exportFiles.
-    def exportAll(self):
+    def export(self):
         """
         Start thread for copy items from one list to the other
         :return:
@@ -250,11 +261,18 @@ class ThreadCopy(QtCore.QThread):
 
 
     def export(self,listName='source'):
-        items = len(sourceDict)
+        if currentSelection:
+            gamesToExport = currentSelection
+        else:
+            gamesToExport = sourceDict
+        items = len(gamesToExport)
+        #print("Items " + str(items))
         count = 0
         self.emit(QtCore.SIGNAL('updateProgressBar'),'destination')
-        for code in sourceDict.keys():
+        for code in gamesToExport.keys():
+            #print("Handling {}, ... {}".format(code,gamesToExport[code]))
             filePath = getPath(code,listName)
+            #print("FilePATH = {}".format(filePath))
             for inputFile in filePath:
                 count += 1
                 extension = (os.path.splitext(inputFile))[1].lstrip('.').upper()
@@ -272,8 +290,8 @@ class ThreadCopy(QtCore.QThread):
                     self.threadFileProgress.start()
                     shutil.copy2(inputFile,outputFile)
                 self.emit(QtCore.SIGNAL('updateProgressBar'),'destination',count,items)
-                while self.threadFileProgress.isRunning():
-                    time.sleep(0.1)
+                #while self.threadFileProgress.isRunning():
+                time.sleep(0.1)
 
         self.emit(QtCore.SIGNAL('updateProgressBar'),'destination',0,0,False)
         self.emit(QtCore.SIGNAL('status'),"")
