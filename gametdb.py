@@ -18,7 +18,7 @@ class GameTDB():
             data = data.encode('utf-8')
             result = urllib.request.urlopen(BASE_URL + '/' + self.gameList,data)
         except urllib.error.URLError as e:
-            # TODO: Update lavel to provide error connecting to server.
+            # TODO: Update label to provide error connecting to server.
             return 0
         for i in result:
             line = i.decode('utf-8')
