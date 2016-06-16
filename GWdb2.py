@@ -4,7 +4,7 @@ import os
 
 class GWdb(object):
     def __init__(self):
-        self.con = sqlite3.connect("::memory::")
+        self.con = sqlite3.connect(":memory:")
         self.cur = self.con.cursor()
         qry = "CREATE TABLE IF NOT EXISTS gameTitles('id' INTEGER PRIMARY KEY,'code' TEXT,'title' TEXT)"
         self.con.execute(qry)
@@ -15,7 +15,7 @@ class GWdb(object):
     #     ''' Delete database file '''
     #     if os.path.exists(database):
     #         os.remove(database)
-    
+
     def select(self,*args):
         """
         :param args: Table name followed by dictionary with arguments for the where clause
