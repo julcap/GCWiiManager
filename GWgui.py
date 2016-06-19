@@ -32,6 +32,11 @@ class GCWii(Ui_MainWindow,QtGui.QMainWindow):
         self.show()
 
     def exportSelection(self,listName = 'source'):
+        """
+        :param listName:
+        :return:
+        Export games marked on the source list
+        """
         results = dict()
         #print(sourceDict)
         for index in self.listView_source.selectedIndexes():

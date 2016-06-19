@@ -5,12 +5,12 @@
 # lyhan_jr@hotmail.com
 
 import sys, os
-import datetime, re
+import re
 import gametdb
 import shutil
 import filecmp
 from GWcli import *
-from GWdb import *
+import GWdb2
 
 
 # Some globals
@@ -69,10 +69,10 @@ def getGameRegion(code):
         return region.get(list(code)[3])
     else: return 'EN'
 
-def populateTitlesTable(titlesDict):
-    flushTable('gameTitles',None)
-    for code in titlesDict:
-        gameTitlesInsert(code,titlesDict[code])
+#def populateTitlesTable(titlesDict):
+#    flushTable('gameTitles',None)
+#    for code in titlesDict:
+#        gameTitlesInsert(code,titlesDict[code])
 
 # Check supported file extensions
 def supportedExtension(filename):
@@ -159,33 +159,15 @@ def getOutputFilePath(inputFile, destination, folderName, fileExtension, gameCod
             #print("Skipping {}".format(inputFile))
             return 0
     
-def normalizedFolderName(code):
-    name = getTitle(code)
+def normalizedFolderName(name, code):
     name = re.findall('[A-Za-z0-9 \'\-!?\(\)\.é]',name)
     name = ''.join(name)
     return name + " [" + code + "]"
 
 def main():
-    gametdbconn = gametdb.GameTDB()
-    titles = gameTitlesCount()
-    # Initialize DB
-    if os.path.exists(database):
-        flushTable('gamesFound',None)
-    else:
-        initDB()
-
-    if titles:
-        print("There are currently {} titles in the database.".format(titles))
-        if validateYN("Would you like to update?"):
-            flushTable('gameTitles',None)
-            # Populate list of games from gametdb.com
-    if titles == 0:
-        gamesDict = gametdbconn.getGameList()
-        print('Updating list of games with {} titles'.format(len(gamesDict)))
-        populateTitlesTable(gamesDict)
-
-    if gamesFoundCount('all'):
-        flushTable('ganesFound',None)
+    connectionTDB = gametdb.GameTDB()
+    db = GWdb2.GWdb()
+    titles = len(db.select('gameTitles'))
 
     # Get location for source where to search for games
     global sourcePath
@@ -214,7 +196,7 @@ def main():
             filesplit = os.path.splitext(file)
             extension = filesplit[1].lstrip('.').upper()
             counter[extension] += 1
-            gamesFoundInsert(code,file,extension,'source')
+            db.insert('gamesFound',('code','path','fileType','listName'),(code,file,extension,'source'))
             #print("{} {} {} {}".format(counter.get('found'),code,file,extension))   
 
     for extension in supportedFileExtensions:
@@ -226,16 +208,19 @@ def main():
     global destinationPath
     destinationPath = getDestPath()
     for extension in supportedFileExtensions:
-        if getGameFound(extension):
+        kvext = {'fileType' : extension }
+        if len(db.select('gamesFound',kvext)):
             count = 0
             counter[extension + '-copied'] = 0
             print("Exporting games... ")
-            for row in getGameFound(extension):
+            for row in db.select('gamesFound',kvext):
+                #print(row)
                 count += 1
-                code = row[0]
-                inputFile = row[1]
-                title = getTitle(code)
-                folderName = normalizedFolderName(code)
+                code = row[1]
+                inputFile = row[2]
+                kvcode = {'code' : code }
+                title = db.select('gameTitles',kvcode)[0][2]
+                folderName = normalizedFolderName(title,code)
                 outputFile = getOutputFilePath(inputFile, destinationPath, folderName, extension, code)
                 if outputFile:
                     shutil.copy2(inputFile, outputFile)
@@ -246,8 +231,9 @@ def main():
                                                
     for extension in supportedFileExtensions:
         if counter.get(extension):
+            kvext = {'fileType' : extension }
             print("Exported {} {} files".format(counter.get(extension + '-copied'),extension))
-            print("{} unique {} games found".format(gamesFoundCount(extension),extension))
+            print("{} unique {} games found".format(len(db.select('gamesFound',kvext)),extension))
 
     print("All exported files are in '{}'".format(os.path.abspath(destinationPath)))
 
