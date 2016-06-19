@@ -2,12 +2,13 @@ import sqlite3
 import gametdb
 import os
 
+database = 'GCWiitmpDB'
 
 class GWdb(object):
     def __init__(self):
         self.gametdb = gametdb.GameTDB()
         self.gametdb = self.gametdb.getGameList()
-        self.con = sqlite3.connect(":memory:")
+        self.con = sqlite3.connect(database)
         self.cur = self.con.cursor()
         qry = "CREATE TABLE IF NOT EXISTS gameTitles('id' INTEGER PRIMARY KEY,'code' TEXT,'title' TEXT)"
         self.cur.execute(qry)
@@ -15,9 +16,9 @@ class GWdb(object):
         self.cur.execute(qry)
         gameTitlesValues = list()
         for i in self.gametdb:
-             values = (i,self.gametdb.get(i))
-             gameTitlesValues.append(values)
-        self.insert('gameTitles',('code','title'),gameTitlesValues)
+            values = (i, self.gametdb.get(i))
+            gameTitlesValues.append(values)
+        self.insert('gameTitles', ('code', 'title'), gameTitlesValues)
         self.con.commit()
 
     def insert(self,tableName,columns,values):
@@ -83,7 +84,8 @@ class GWdb(object):
     def close(self):
         self.cur.close()
         self.con.close()
+        os.rmdir(database)
 
 
-test = GWdb()
-test.close()
+#test = GWdb()
+#test.close()

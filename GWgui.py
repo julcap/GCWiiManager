@@ -1,7 +1,7 @@
 import sys,time
 from PyQt4 import QtCore, QtGui
 from GCWiiManager import *
-from GWdb import *
+import GWdb2
 import gametdb
 from GCWiiMainWindow import Ui_MainWindow
 
@@ -27,9 +27,19 @@ class GCWii(Ui_MainWindow,QtGui.QMainWindow):
         self.progressBar_fileProgress.setVisible(False)
         self.progressBar_destination.setVisible(False)
         self.label_status.setVisible(False)
-        self.checkAndPrepareDB()
+        self.db = GWdb2.GWdb()
+        self.db.start()
         self.gametdb = gametdb.GameTDB()
         self.show()
+
+    def updateSourceFiles(self,filesDict):
+        results = dict()
+        for key in filesDict.keys():
+            args = { 'code' : key }
+            results[key]=self.db.select('gamesFound',args)[0][2]
+        global sourceFiles
+        sourceFiles = results
+
 
     def exportSelection(self,listName = 'source'):
         """
@@ -46,7 +56,8 @@ class GCWii(Ui_MainWindow,QtGui.QMainWindow):
                     results[key] = title
         global currentSelection
         currentSelection = results
-        print(currentSelection)
+        #print(currentSelection)
+        self.updateSourceFiles(results)
         self.export()
 
     def exportAll(self):
@@ -76,30 +87,6 @@ class GCWii(Ui_MainWindow,QtGui.QMainWindow):
                 return 0
         else:
             msgBox.exec_()
-
-
-    def checkAndPrepareDB(self):
-        msgBox = QtGui.QMessageBox()
-        try:
-            dbList = gameTitlesCount()
-            if dbList:
-                action = self.msgBox('Current local game list contains {} titles. Would you like to update it?'.format(dbList))
-                if action:
-                    deleteDB()
-                    initDB()
-                    self.threadUpdateList.start()
-            else:
-                action = self.msgBox('It seems there is no available game data.<br>Would you like to download it?',
-                                       'If there is no data this application can not work properly.')
-                if action:
-                    self.threadUpdateList.start()
-                else:
-                    sys.exit()
-
-        except sqlite3.OperationalError:
-            initDB()
-            self.checkAndPrepareDB()
-
 
     def updateProgressBar(self,progressBarName,value=0,max=0,active = True):
         #print("DEBUG {} {} {} {} ".format(progressBarName,value,max,active))
@@ -172,12 +159,15 @@ class GCWii(Ui_MainWindow,QtGui.QMainWindow):
         :param listName:
         :return:
         """
-        flushTable('gamesFound',listName)
+        #flushTable('gamesFound',listName)
+        self.db.delete(tableName='gamesFound',listName=listName)
         if listOfFoundFiles:
             for file in listOfFoundFiles:
                 code = getGameCode(file)
                 extension = (os.path.splitext(file))[1].lstrip('.').upper()
-                gamesFoundInsert(code,file,extension,listName)
+                #gamesFoundInsert(code,file,extension,listName)
+                self.db.insert('gamesFound', ('code', 'path', 'fileType', 'listName'), (code, file, extension, 'source'))
+
 
     def populateListView(self,listName,directory = None):
         """
@@ -214,6 +204,9 @@ class GCWii(Ui_MainWindow,QtGui.QMainWindow):
                     self.listView_source.setEditTriggers(QtGui.QAbstractItemView.NoEditTriggers)
             except PermissionError as err:
                 self.msgBox('You do not have permission to read the source directory selected.', str(err), 'message')
+    def ioexchange(self):
+        with open(exchange.io,WRITE) as f:
+            f.writable()
 
     def getGamesDict(self,listOfFoundFiles = []):
         """
@@ -223,7 +216,8 @@ class GCWii(Ui_MainWindow,QtGui.QMainWindow):
             gamesDict = {}
             for file in listOfFoundFiles:
                 code = getGameCode(file)
-                gamesDict[code] = getTitle(code)
+                kvcode = { 'code' : code }
+                gamesDict[code] = self.db.select('gameTitles',kvcode)[0][2]
             return gamesDict
         else:
             gamesDict = { '0000' : 'Folder is empty'}
@@ -254,11 +248,14 @@ class GCWii(Ui_MainWindow,QtGui.QMainWindow):
             self.msgBox("Missing games to copy",None,'message')
 
     def quit(self):
+        self.db.close()
         sys.exit(0)
 
 class ThreadCopy(QtCore.QThread):
     def __init__(self,parent = None):
         super(ThreadCopy,self).__init__(parent)
+
+    #TODO: Use a io file for communication between thread and Classes
 
     def updateFileProgress(self,progressBarName,value,max,active = True):
         #print("DEBUG: {} {} {} {} ".format(progressBarName,value,max,active))
@@ -276,19 +273,28 @@ class ThreadCopy(QtCore.QThread):
         self.emit(QtCore.SIGNAL('updateProgressBar'),'destination')
         for code in gamesToExport.keys():
             #print("Handling {}, ... {}".format(code,gamesToExport[code]))
-            filePath = getPath(code,listName)
+            kvargs = {'code' : code,
+                      'listName' : listName}
+            #print(sourceDict)
+            #print(currentSelection)
+            filePath = self.db.select('gamesFound',kvargs)
+            print("FILEPATH: " + filePath)
             #print("FilePATH = {}".format(filePath))
             for inputFile in filePath:
                 count += 1
                 extension = (os.path.splitext(inputFile))[1].lstrip('.').upper()
-                folderName = normalizedFolderName(code)
+                #print(sourceDict.get(code))
+                #sys.exit()
+                name = sourceDict.get(code)
+                folderName = normalizedFolderName(name,code)
+                print(folderName)
                 self.emit(QtCore.SIGNAL('status'),"Exporting ../{}".format(os.path.basename(inputFile)))
                 outputFile = getOutputFilePath(inputFile, destinationPath, folderName, extension, code)
                 if outputFile:
                     ### DEBUG ###
-                    print(filePath)
-                    print(inputFile)
-                    print(outputFile)
+                    #print(filePath)
+                    print("INPUT: " + inputFile)
+                    print("OUTPUT: " + outputFile)
                     ###
                     self.threadFileProgress = ThreadUpdateFileProgress(inputFile, outputFile)
                     self.connect(self.threadFileProgress, QtCore.SIGNAL('updateFileBar'), self.updateFileProgress)

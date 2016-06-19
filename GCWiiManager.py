@@ -21,6 +21,7 @@ sourcePath = ''
 sourceDict = {}
 destinationPath = ''
 destinationDict = {}
+sourceFiles = {}
 
 READ = 'r'
 BINARY = 'b'
@@ -82,6 +83,14 @@ def supportedExtension(filename):
         if filename.lower().endswith(extension.lower()):
             return 1
     return 0
+
+def getTitle(code):
+    conn = connectDB()
+    qry = 'SELECT title FROM gameTitles WHERE code="{}"'.format(code)
+    conn.execute(qry)
+    results = conn.fetchall()
+    conn.close()
+    return results[0][0]
 
 def getGameCode(file):
     f = open(file, READ + BINARY)
