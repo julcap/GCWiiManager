@@ -19,9 +19,9 @@ class GWdb(object):
     def insert(self,tableName,columns,values):
         """
         :param args:
-        :string table name
-        :tuple columns
-        :list of tuples values
+        :param tableName -> string
+        :param columns -> tuple
+        :param values -> list of tuples
         :return:
         """
         self.tableName = tableName
@@ -33,21 +33,20 @@ class GWdb(object):
         self.con.commit()
 
 
-    def select(self,tableNAme,arguments = None):
+    def select(self,tableNAme,args = None):
         """
         :param tableNAme str
-        :param arguments dict
+        :param args dict
         :return:
         """
         self.tableName = tableNAme
-        self.arguments = arguments
         qry = "select * from {}".format(self.tableName)
-        if self.arguments:
+        if args:
             arg = " where "
-            count = len(self.arguments)
-            for i in self.arguments.keys():
-                arg += i + " = '" + self.arguments.get(i) + "'"
-                if  list(self.arguments.keys()).index(i) != count -1:
+            count = len(args)
+            for i in args.keys():
+                arg += i + " = '" + args.get(i) + "'"
+                if  list(args.keys()).index(i) != count - 1:
                     arg += " and "
             qry = qry + arg
         self.cur.execute(qry)
@@ -55,9 +54,32 @@ class GWdb(object):
 
 
     def delete(self,**kwargs):
-        self.tableName = kwargs.get('table',None)
-        if self.tableName == None:
-            return 0
+        """
+        :param kwargs: tableName=table, key1=value, key2=value
+         result query = "delete from table where key1='value' and key2='value'"
+        :return:
+        """
+        tableName = kwargs.get('tableName',None)
+        count = len(kwargs.keys())
+        if tableName == None:
+            return 1
+        qry = "delete from {}".format(tableName)
+        if kwargs.__len__() > 1:
+            args = " where "
+            for key in kwargs.keys():
+                if key == 'tableName':
+                    continue
+                if type(kwargs.get(key)) == type(str()):
+                    args += key + " = '" + kwargs.get(key) + "'"
+                if type(kwargs.get(key)) == type(int()):
+                    args += "{} = {}".format(key,kwargs.get(key))
+                args += " and "
+            args = args[:-4]
+            qry = qry + args
+        self.cur.execute(qry)
+        self.con.commit()
+        return 0
+
 
 
     def close(self):
@@ -67,9 +89,11 @@ class GWdb(object):
 
 test = GWdb()
 columns = '(code,title)'
-values = [('abc','El mundo'),('123','la vista')]
+values = [(123,'El mundo'),('123','la vista')]
 test.insert('gameTitles',columns,values)
 arguments = { 'code' : 'abc',
               'title' : 'test'}
+test.select('gameTitles')
+test.delete(tableName='gameTitles')
 test.select('gameTitles')
 test.close()
