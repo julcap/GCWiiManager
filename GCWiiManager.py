@@ -84,13 +84,13 @@ def supportedExtension(filename):
             return 1
     return 0
 
-def getTitle(code):
-    conn = connectDB()
-    qry = 'SELECT title FROM gameTitles WHERE code="{}"'.format(code)
-    conn.execute(qry)
-    results = conn.fetchall()
-    conn.close()
-    return results[0][0]
+# def getTitle(code):
+#     conn = connectDB()
+#     qry = 'SELECT title FROM gameTitles WHERE code="{}"'.format(code)
+#     conn.execute(qry)
+#     results = conn.fetchall()
+#     conn.close()
+#     return results[0][0]
 
 def getGameCode(file):
     f = open(file, READ + BINARY)
@@ -149,6 +149,7 @@ def getOutputFilePath(inputFile, destination, folderName, fileExtension, gameCod
         os.mkdir(destination)
     if not os.path.exists(os.path.join(destination,folderName)):
         os.mkdir(os.path.join(destination,folderName))
+        #print(outputFile)
     if not os.path.exists(outputFile):
         # print("Copying {} to {}".format(inputFile,outputFile))
         #shutil.copy2(inputFile, outputFile)
@@ -157,13 +158,14 @@ def getOutputFilePath(inputFile, destination, folderName, fileExtension, gameCod
         if not checkDuplicate(inputFile, outputFile) and fileExtension == 'ISO':
             fileName = 'disc2'
             outputFile = os.path.join(destination,folderName,fileName + '.' + fileExtension.lower())
+            #print("Output File: {}".format(outputFile))
             if os.path.exists(outputFile):
                 if checkDuplicate(inputFile, outputFile):
                     return 0
-                else:
-                    print("Copying {} to {}".format(inputFile, outputFile))
-                    #shutil.copy2(inputFile, outputFile)
-                    return outputFile
+            else:
+                print("Copying {} to {}".format(inputFile, outputFile))
+                #shutil.copy2(inputFile, outputFile)
+                return outputFile
         else:
             #print("Skipping {}".format(inputFile))
             return 0

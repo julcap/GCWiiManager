@@ -2,7 +2,8 @@ import sqlite3
 import gametdb
 import os
 
-database = 'GCWiitmpDB'
+database = ':memory:'
+
 
 class GWdb(object):
     def __init__(self):
@@ -21,7 +22,7 @@ class GWdb(object):
         self.insert('gameTitles', ('code', 'title'), gameTitlesValues)
         self.con.commit()
 
-    def insert(self,tableName,columns,values):
+    def insert(self, tableName, columns, values):
         """
         :param args:
         :param tableName -> string
@@ -29,12 +30,11 @@ class GWdb(object):
         :param values -> list of tuples
         :return:
         """
-        qry = "insert into {}{} values{}".format(tableName,columns,str(values).strip('[]'))
+        qry = "insert into {}{} values{}".format(tableName, columns, str(values).strip('[]'))
         self.cur.execute(qry)
         self.con.commit()
 
-
-    def select(self,tableName,args = None):
+    def select(self, tableName, args=None):
         """
         :param tableNAme str
         :param args dict
@@ -46,20 +46,19 @@ class GWdb(object):
             count = len(args)
             for i in args.keys():
                 arg += i + " = '" + args.get(i) + "'"
-                if  list(args.keys()).index(i) != count - 1:
+                if list(args.keys()).index(i) != count - 1:
                     arg += " and "
             qry = qry + arg
         self.cur.execute(qry)
         return self.cur.fetchall()
 
-
-    def delete(self,**kwargs):
+    def delete(self, **kwargs):
         """
         :param kwargs: tableName=table, key1=value, key2=value
          result query = "delete from table where key1='value' and key2='value'"
         :return:
         """
-        tableName = kwargs.get('tableName',None)
+        tableName = kwargs.get('tableName', None)
         if tableName == None:
             return 1
         qry = "delete from {}".format(tableName)
@@ -71,7 +70,7 @@ class GWdb(object):
                 if type(kwargs.get(key)) == type(str()):
                     args += key + " = '" + kwargs.get(key) + "'"
                 if type(kwargs.get(key)) == type(int()):
-                    args += "{} = {}".format(key,kwargs.get(key))
+                    args += "{} = {}".format(key, kwargs.get(key))
                 args += " and "
             args = args[:-4]
             qry = qry + args
@@ -79,13 +78,8 @@ class GWdb(object):
         self.con.commit()
         return 0
 
-
-
     def close(self):
         self.cur.close()
         self.con.close()
-        os.rmdir(database)
-
-
-#test = GWdb()
-#test.close()
+        if os.path.exists(database):
+            os.rmdir(database)
