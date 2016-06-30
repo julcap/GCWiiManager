@@ -10,7 +10,7 @@ import gametdb
 import shutil
 import filecmp
 from GWcli import *
-import GWdb2
+import GWdb
 
 
 # Some globals
@@ -177,7 +177,7 @@ def normalizedFolderName(name, code):
 
 def main():
     connectionTDB = gametdb.GameTDB()
-    db = GWdb2.GWdb()
+    db = GWdb.GWdb()
     titles = len(db.select('gameTitles'))
 
     # Get location for source where to search for games

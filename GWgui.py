@@ -1,7 +1,7 @@
 import sys, time
 from PyQt4 import QtCore, QtGui
 from GCWiiManager import *
-import GWdb2
+import GWdb
 import gametdb
 from GCWiiMainWindow import Ui_MainWindow
 
@@ -28,7 +28,7 @@ class GCWii(Ui_MainWindow, QtGui.QMainWindow):
         self.progressBar_fileProgress.setVisible(False)
         self.progressBar_destination.setVisible(False)
         self.label_status.setVisible(False)
-        self.db = GWdb2.GWdb()
+        self.db = GWdb.GWdb()
         self.gametdb = gametdb.GameTDB()
         self.show()
 
@@ -269,8 +269,8 @@ class ThreadCopy(QtCore.QThread):
     def export(self, listName='source'):
         if sourceFiles:
             gamesToExport = sourceFiles
-            for i in sourceFiles:
-                print("{} {}".format(i, sourceFiles[i]))
+            #for i in sourceFiles:
+            #    print("{} {}".format(i, sourceFiles[i]))
         else:
             gamesToExport = sourceDict
         items = len(gamesToExport)
