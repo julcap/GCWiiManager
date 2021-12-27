@@ -1,23 +1,54 @@
+import ast
+import json
 import sqlite3
 import gametdb
 import os
 
-database = ':memory:'
+
+def singleton(class_):
+    instances = {}
+
+    def getinstance(*args, **kwargs):
+        if class_ not in instances:
+            instances[class_] = class_(*args, **kwargs)
+        return instances[class_]
+
+    return getinstance
 
 
+@singleton
 class GWdb(object):
     def __init__(self):
-        self.gametdb = gametdb.GameTDB()
-        self.gametdb = self.gametdb.getGameList()
-        self.con = sqlite3.connect(database)
+        self.database = 'GCWiiManager.db'
+        self.gameList = {}
+        self.fileName = 'wiitdb.txt'
+        self.con = sqlite3.connect(self.database)
         self.cur = self.con.cursor()
         qry = "CREATE TABLE IF NOT EXISTS gameTitles('id' INTEGER PRIMARY KEY,'code' TEXT,'title' TEXT)"
         self.cur.execute(qry)
         qry = "CREATE TABLE IF NOT EXISTS gamesFound('id' INTEGER PRIMARY KEY,'code' TEXT,'path' TEXT, 'fileType' TEXT, 'listName' TEXT)"
         self.cur.execute(qry)
+        self.getGameList()
+        self.populateDatabase()
+
+    def getGameList(self):
+        try:
+            with open(self.fileName, 'r') as file:
+                self.gameList = ast.literal_eval(file.read())
+        except FileNotFoundError:
+            self.refreshData()
+
+    def refreshData(self):
+        TDB = gametdb.GameTDB()
+        self.gameList = TDB.getGameList()
+        file = open(self.fileName, 'w')
+        file.write(str(self.gameList))
+        file.close()
+
+    def populateDatabase(self):
         gameTitlesValues = list()
-        for i in self.gametdb:
-            values = (i, self.gametdb.get(i))
+        for i in self.gameList:
+            values = (i, self.gameList.get(i))
             gameTitlesValues.append(values)
         self.insert('gameTitles', ('code', 'title'), gameTitlesValues)
         self.con.commit()
@@ -34,13 +65,14 @@ class GWdb(object):
         self.cur.execute(qry)
         self.con.commit()
 
-    def select(self, tableName, args=None):
+    def select(self, tableName, columns, args=None, ):
         """
         :param tableNAme str
         :param args dict
+        :param columns string
         :return:
         """
-        qry = "select * from {}".format(tableName)
+        qry = "select {} from {}".format(columns, tableName)
         if args:
             arg = " where "
             count = len(args)
@@ -81,5 +113,5 @@ class GWdb(object):
     def close(self):
         self.cur.close()
         self.con.close()
-        if os.path.exists(database):
-            os.rmdir(database)
+        if os.path.exists(self.database):
+            os.remove(self.database)
