@@ -1,4 +1,4 @@
-import sys, time, os, shutil
+import sys, time, os
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtCore import QObject, QThread, pyqtSignal
 import GCWiiManager
@@ -64,7 +64,7 @@ class GCWii(Ui_MainWindow, QtWidgets.QMainWindow):
         self.games_to_export = self.source_title_list_hash_map
         self.export()
 
-    def updateStatusLabel(self, text):
+    def update_status_label(self, text=''):
         if text:
             self.label_status.setVisible(True)
             self.label_status.setText(text)
@@ -87,17 +87,18 @@ class GCWii(Ui_MainWindow, QtWidgets.QMainWindow):
         else:
             msgBox.exec_()
 
-    def updateProgressBar(self, progressBarName, value=0, max=0, active=True):
-        if progressBarName == 'destination':
-            progressBar = self.progressBar_destination
-        elif progressBarName == 'fileProgress':
-            progressBar = self.progressBar_fileProgress
-        progressBar.setVisible(active)
+    def updateProgressBar(self, progress_bar_name, value=0, max=0, active=True):
+        bar = None
+        if progress_bar_name == 'destination':
+            bar = self.progressBar_destination
+        elif progress_bar_name == 'fileProgress':
+            bar = self.progressBar_fileProgress
+        bar.setVisible(active)
         if max == 0:
             value = 0
         else:
             value = (value * 100) / max
-        progressBar.setValue(value)
+        bar.setValue(value)
 
     def updateGlobalProgressBar(self, value):
         self.progressBar_destination.setValue(value)
@@ -232,6 +233,7 @@ class GCWii(Ui_MainWindow, QtWidgets.QMainWindow):
         self.thread.started.connect(self.worker.run)
         self.worker.finished.connect(self.thread.quit)
         self.worker.progress.connect(self.updateGlobalProgressBar)
+        self.worker.processing.connect(self.update_status_label)
         self.worker.finished.connect(self.updateDestinationList)
         self.thread.finished.connect(self.resetProgressBars)
         self.thread.finished.connect(self.hideProgressBars)
@@ -253,15 +255,16 @@ class GCWii(Ui_MainWindow, QtWidgets.QMainWindow):
 class CopyWorker(QObject):
     finished = pyqtSignal()
     progress = pyqtSignal(int)
-    games_to_export = {}
-    update_global_progress = {}
-    update_file_progress = {}
-    source_file_hash_map = {}
-    destination_directory = ''
+    processing = pyqtSignal(str)
 
     def __init__(self, parent=None):
         super(CopyWorker, self).__init__(parent)
         self._isRunning = False
+        self.games_to_export = {}
+        self.update_global_progress = {}
+        self.update_file_progress = {}
+        self.source_file_hash_map = {}
+        self.destination_directory = ''
 
     def initialize(self, games_to_export, source_file_hash_map, destination_directory, update_file_progress):
         self.games_to_export = games_to_export
@@ -278,12 +281,15 @@ class CopyWorker(QObject):
                 inputFile = self.source_file_hash_map.get(code)
                 if isinstance(inputFile, list):
                     for file in inputFile:
+                        self.processing.emit(file)
                         self.processFile(file, code, True)
                 else:
+                    self.processing.emit(inputFile)
                     self.processFile(inputFile, code)
             count += 1
             self.progress.emit(int((count * 100) / total))
             self.finished.emit()
+            self.processing.emit('')
             self.threadFileProgress.quit()
 
     def processFile(self, inputFile, code, multidisc=False):
@@ -312,7 +318,6 @@ class CopyWorker(QObject):
 
 
 class ThreadUpdateFileProgress(QtCore.QThread):
-    finished = pyqtSignal()
     progress = pyqtSignal(int)
 
     def __init__(self, inputFile=None, outputFile=None):
