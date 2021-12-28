@@ -57,7 +57,7 @@ def get_game_region(code):
 # Check supported file extensions
 def is_file_extension_supported(filename):
     """ @filename: absolute path to file """
-    for extension in ('ISO', 'WBFS', '7Z'):
+    for extension in ('ISO', 'WBFS'):
         if filename.lower().endswith(extension.lower()):
             return True
     return False
@@ -70,12 +70,27 @@ def get_bite_chunk(file, size):
     return data
 
 
+# Wii games store the identifier at position (512, 518)
+def is_valid_wii_identifier_location(location):
+    return location == (512, 518)
+
+
+# GameCube games store the identifier at position (0, 6).
+def is_valid_gc_identifier_location(location):
+    return location == (0, 6)
+
+
 def get_game_identifier(file):
     code = re.search(b'[A-Z0-9]{6}', get_bite_chunk(file, 1024))
     if code:
-        return code.group(0).decode('ascii')
+        # The string is always in same location for Wii and GameCube identifiers
+        # E.g if an ubuntu iso image is passed, it will return false.
+        if is_valid_wii_identifier_location(code.span()) or is_valid_gc_identifier_location(code.span()):
+            return code.group(0).decode('ascii')
+        else:
+            return False
     else:
-        return 0
+        return False
 
 
 def get_disc_number(file):
@@ -117,7 +132,7 @@ def copy_file(source_file, destination_file):
 def generate_identifier_title_dict(full_path_file_list=[]):
     """ Return a dictionary sonsisting of game identifier and title {"AGCDEF" : "Game title"} """
     if not full_path_file_list:
-        return {'0000': 'Folder is empty'}
+        return {'0000': 'No Wii or GameCube game was found'}
     result = {}
     for file in full_path_file_list:
         key = get_game_identifier(file)
