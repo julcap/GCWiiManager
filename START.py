@@ -26,7 +26,7 @@ class GCWii(Ui_MainWindow, QtWidgets.QMainWindow):
         self.listView_destination.clicked.connect(lambda: self.updateArtWork('destination'))
         self.exit_btn.clicked.connect(lambda: self.quit())
         self.exportSelected_btn.clicked.connect(lambda: self.exportSelection())
-        self.cancel_btn.clicked.connect(lambda: print("Hi There"))
+        self.cancel_btn.clicked.connect(lambda: self.cancel_copy())
         self.label_boxArtWork.setPixmap(QtGui.QPixmap(str(os.path.join(self.boxArtWork, self.box))))
         self.label_dicArtWork.setPixmap(QtGui.QPixmap(str(os.path.join(self.discArtWork, self.disc))))
         self.progressBar_fileProgress.setVisible(False)
@@ -122,7 +122,7 @@ class GCWii(Ui_MainWindow, QtWidgets.QMainWindow):
         box = str(os.path.join(self.boxArtWork, self.box))
         disc = str(os.path.join(self.discArtWork, self.disc))
         if code != '0000':
-            region = GCWiiManager.getGameRegion(code)
+            region = GCWiiManager.get_game_region(code)
             if (self.gametdb.getArtWork(region, code, True, None)):
                 box = str(os.path.join(self.boxArtWork, region, code + ".png"))
             if (self.gametdb.getArtWork(region, code, None, True)):
@@ -173,13 +173,13 @@ class GCWii(Ui_MainWindow, QtWidgets.QMainWindow):
                 self.source_directory = self.selectDirectory()
             if self.source_directory == '':
                 return
-            list_of_found_files = GCWiiManager.findSupportedFiles(self.source_directory)
-            self.source_title_list_hash_map = GCWiiManager.parseFileList(list_of_found_files)
+            list_of_found_files = GCWiiManager.find_supported_files(self.source_directory)
+            self.source_title_list_hash_map = GCWiiManager.generate_identifier_title_dict(list_of_found_files)
             self.label_source.setText('Source: ' + self.source_directory)
-            GCWiiManager.updateSourceDBTable(list_of_found_files, 'source')
+            GCWiiManager.refresh_db_source_table(list_of_found_files, 'source')
             self.listView_source.setModel(self.getTitleList(self.source_title_list_hash_map))
             self.listView_source.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
-            self.source_file_list_hash_map = GCWiiManager.parseSourceList(list_of_found_files)
+            self.source_file_list_hash_map = GCWiiManager.generate_identifier_absolute_path_dict(list_of_found_files)
 
         except PermissionError as err:
             self.msgBox('You do not have permission to read the source directory selected.', str(err), 'message')
@@ -190,11 +190,11 @@ class GCWii(Ui_MainWindow, QtWidgets.QMainWindow):
                 self.destination_directory = self.selectDirectory()
             if self.destination_directory == '':
                 return
-            list_of_found_files = GCWiiManager.findSupportedFiles(self.destination_directory)
-            self.destination_title_list_hash_map = GCWiiManager.parseFileList(list_of_found_files)
+            list_of_found_files = GCWiiManager.find_supported_files(self.destination_directory)
+            self.destination_title_list_hash_map = GCWiiManager.generate_identifier_title_dict(list_of_found_files)
             self.label_destination.setText('Destination: ' + self.destination_directory)
             self.destination_directory = self.destination_directory
-            GCWiiManager.updateSourceDBTable(list_of_found_files, 'destination')
+            GCWiiManager.refresh_db_source_table(list_of_found_files, 'destination')
             self.listView_destination.setModel(self.getTitleList(self.destination_title_list_hash_map))
             self.listView_source.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
         except PermissionError as err:
@@ -239,7 +239,15 @@ class GCWii(Ui_MainWindow, QtWidgets.QMainWindow):
         self.thread.start()
 
     def quit(self):
+        GCWiiManager.quit()
         sys.exit(0)
+
+    def cancel_copy(self):
+        self.worker.stop()
+        self.thread.quit()
+        self.thread.wait()
+        self.resetProgressBars()
+        self.hideProgressBars()
 
 
 class CopyWorker(QObject):
@@ -253,6 +261,7 @@ class CopyWorker(QObject):
 
     def __init__(self, parent=None):
         super(CopyWorker, self).__init__(parent)
+        self._isRunning = False
 
     def initialize(self, games_to_export, source_file_hash_map, destination_directory, update_file_progress):
         self.games_to_export = games_to_export
@@ -261,16 +270,17 @@ class CopyWorker(QObject):
         self.update_file_progress = update_file_progress
 
     def export(self):
+        self._isRunning = True
         count = 0
         total = len(self.games_to_export)
         for code in self.games_to_export.keys():
-            inputFile = self.source_file_hash_map.get(code)
-            print(inputFile)
-            if isinstance(inputFile, list):
-                for file in inputFile:
-                    self.processFile(file, code, True)
-            else:
-                self.processFile(inputFile, code)
+            if self._isRunning:
+                inputFile = self.source_file_hash_map.get(code)
+                if isinstance(inputFile, list):
+                    for file in inputFile:
+                        self.processFile(file, code, True)
+                else:
+                    self.processFile(inputFile, code)
             count += 1
             self.progress.emit(int((count * 100) / total))
             self.finished.emit()
@@ -280,7 +290,8 @@ class CopyWorker(QObject):
         extension = (os.path.splitext(inputFile))[1].lstrip('.').upper()
         name = self.games_to_export.get(code)
         folderName = GCWiiManager.get_destination_normalized_folder_name(name, code)
-        outputFile = GCWiiManager.get_output_file_absolute_path(inputFile, self.destination_directory, folderName, extension, code,
+        outputFile = GCWiiManager.get_output_file_absolute_path(inputFile, self.destination_directory, folderName,
+                                                                extension, code,
                                                                 multidisc)
         GCWiiManager.create_destination_folder(outputFile)
 
@@ -288,13 +299,17 @@ class CopyWorker(QObject):
             self.threadFileProgress = ThreadUpdateFileProgress(inputFile, outputFile)
             self.threadFileProgress.progress.connect(self.update_file_progress)
             self.threadFileProgress.start()
-            shutil.copy2(inputFile, outputFile)
+            GCWiiManager.copy_file(inputFile, outputFile)
 
     def updateFileProgress(self, progressBarName, value, max, active=True):
         self.emit(QtCore.SIGNAL('updateProgressBar'), progressBarName, value, max, active)
 
+    def stop(self):
+        self._isRunning = False
+
     def run(self):
         self.export()
+
 
 class ThreadUpdateFileProgress(QtCore.QThread):
     finished = pyqtSignal()

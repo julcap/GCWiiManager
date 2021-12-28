@@ -31,7 +31,7 @@ class GCWiiManagerTests(unittest.TestCase):
                                                             multidisc)
         self.assertEqual('/home/jca/destination/Game name [ABCDEF]/game.iso', result)
 
-    @patch('GCWiiManager.getDiskNumber')
+    @patch('GCWiiManager.get_disc_number')
     def test_get_output_file_absolute_path_ISO_Multidisk_Disc_1(self, mock_method):
         mock_method.return_value = 1
         inputFile = '/home/jca/games/game name.iso'
@@ -45,7 +45,7 @@ class GCWiiManagerTests(unittest.TestCase):
                                                             multidisc)
         self.assertEqual('/home/jca/destination/Game name [ABCDEF]/game.iso', result)
 
-    @patch('GCWiiManager.getDiskNumber')
+    @patch('GCWiiManager.get_disc_number')
     def test_get_output_file_absolute_path_ISO_Multidisk_Disc_2(self, mock_method):
         mock_method.return_value = 2
         inputFile = '/home/jca/games/game name.iso'

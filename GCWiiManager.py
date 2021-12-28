@@ -5,13 +5,12 @@
 
 import re, os
 import filecmp
+import shutil
 
 from GWdb import GWdb
 
-supportedFileExtensions = ('ISO', 'WBFS')
 
-
-def getGameRegion(code):
+def get_game_region(code):
     """
     A 	41 	All regions. System channels like the Mii channel use it.
     B 	42 	Used by some WiiWare / Virtual Console titles.
@@ -56,37 +55,36 @@ def getGameRegion(code):
 
 
 # Check supported file extensions
-def supportedExtension(filename):
-    """ @filename: absolute path to file
-        @extension: list of extensions """
-    for extension in supportedFileExtensions:
+def is_file_extension_supported(filename):
+    """ @filename: absolute path to file """
+    for extension in ('ISO', 'WBFS', '7Z'):
         if filename.lower().endswith(extension.lower()):
-            return 1
-    return 0
+            return True
+    return False
 
 
-def getBiteChunk(file, size):
+def get_bite_chunk(file, size):
     f = open(file, 'rb')
     data = f.read(size)
     f.close()
     return data
 
 
-def getGameCode(file):
-    code = re.search(b'[A-Z0-9]{6}', getBiteChunk(file, 1024))
+def get_game_identifier(file):
+    code = re.search(b'[A-Z0-9]{6}', get_bite_chunk(file, 1024))
     if code:
         return code.group(0).decode('ascii')
     else:
         return 0
 
 
-def getDiskNumber(file):
-    data = getBiteChunk(file, 1024)
+def get_disc_number(file):
+    data = get_bite_chunk(file, 1024)
     match = re.search(b'[A-Z0-9]{6}', data)
     return int(data[match.span()[1]]) + 1
 
 
-def findSupportedFiles(path):
+def find_supported_files(path):
     """@path: directory where to search"""
     files = []
     directories = []
@@ -94,15 +92,15 @@ def findSupportedFiles(path):
         file = os.path.join(path, item)
         if os.path.isdir(file):
             directories.append(item)
-        if os.path.isfile(file) and supportedExtension(file):
-            if getGameCode(file):
+        if os.path.isfile(file) and is_file_extension_supported(file):
+            if get_game_identifier(file):
                 files.append(file)
     for directory in directories:
         directory = os.path.join(path, directory)
         for file in os.listdir(directory):
             file = os.path.join(directory, file)
-            if os.path.isfile(file) and supportedExtension(file):
-                if getGameCode(file):
+            if os.path.isfile(file) and is_file_extension_supported(file):
+                if get_game_identifier(file):
                     files.append(file)
     if files:
         return files
@@ -110,41 +108,34 @@ def findSupportedFiles(path):
         return 0
 
 
-def checkDuplicate(file1, file2):
-    if filecmp.cmp(file1, file2):
-        return 1
-    else:
-        return 0
+def copy_file(source_file, destination_file):
+    if os.path.exists(destination_file) and filecmp.cmp(source_file, destination_file, shallow=True):
+        return
+    shutil.copy2(source_file, destination_file)
 
 
-def parseFileList(listOfFoundFiles=[]):
-    """
-    Return a dictionary "code" : "Game title" for populating the list table and fetching the artworks
-    """
-    if not listOfFoundFiles:
+def generate_identifier_title_dict(full_path_file_list=[]):
+    """ Return a dictionary sonsisting of game identifier and title {"AGCDEF" : "Game title"} """
+    if not full_path_file_list:
         return {'0000': 'Folder is empty'}
     result = {}
-    for file in listOfFoundFiles:
-        key = getGameCode(file)
+    for file in full_path_file_list:
+        key = get_game_identifier(file)
         db = GWdb()
-        kvcode = {'code': key}
-        result[key] = db.select('gameTitles', '*', kvcode)[0][2]
+        result[key] = db.select('gameTitles', '*', {'code': key})[0][2]
     return result
 
 
-def parseSourceList(listOfFoundFiles=[]):
-    """
-    Return a dictionary "code" : "/Absolut/file/path"
-    """
-    if not listOfFoundFiles:
+def generate_identifier_absolute_path_dict(full_path_file_list=[]):
+    """ Return a dictionary {"AGCDEF" : "/Absolut/file/path.iso"} """
+    if not full_path_file_list:
         return {'0000': 'Folder is empty'}
 
     result = {}
-    for file in listOfFoundFiles:
-        key = getGameCode(file)
+    for file in full_path_file_list:
+        key = get_game_identifier(file)
         db = GWdb()
-        kvcode = {'code': key}
-        data = db.select('gamesFound', '*', kvcode)
+        data = db.select('gamesFound', '*', {'code': key})
         if len(data) > 1:
             result[key] = [data[0][2], data[1][2]]
         else:
@@ -152,19 +143,19 @@ def parseSourceList(listOfFoundFiles=[]):
     return result
 
 
-def updateSourceDBTable(listOfFoundFiles, listName):
+def refresh_db_source_table(full_path_file_list, list_name):
     """
     Clear table for old items and update with new items
-    :param listOfFoundFiles:
-    :param listName:
+    :param full_path_file_list:
+    :param list_name:
     :return:
     """
-    # flushTable('gamesFound',listName)
+    # flushTable('gamesFound',list_name)
     db = GWdb()
-    db.delete(tableName='gamesFound', listName=listName)
-    if listOfFoundFiles:
-        for file in listOfFoundFiles:
-            code = getGameCode(file)
+    db.delete(tableName='gamesFound', listName=list_name)
+    if full_path_file_list:
+        for file in full_path_file_list:
+            code = get_game_identifier(file)
             extension = (os.path.splitext(file))[1].lstrip('.').upper()
             # gamesFoundInsert(code,file,extension,listName)
             db.insert('gamesFound', ('code', 'path', 'fileType', 'listName'),
@@ -183,7 +174,7 @@ def get_output_file_absolute_path(input_file, destination, folder_name, file_ext
     file_name = ''
     if file_extension == 'ISO':
         if multi_disc:
-            disc = getDiskNumber(input_file)
+            disc = get_disc_number(input_file)
             if disc == 1:
                 file_name = 'game'
             elif disc == 2:
@@ -205,3 +196,8 @@ def get_destination_normalized_folder_name(game_title, identifier):
     name = re.findall('[A-Za-z0-9 \'\-!?\(\)\.é]', game_title)
     name = ''.join(name)
     return name + " [" + identifier + "]"
+
+
+def quit():
+    db = GWdb()
+    db.close()

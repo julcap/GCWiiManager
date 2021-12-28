@@ -1,5 +1,4 @@
 import ast
-import json
 import sqlite3
 import gametdb
 import os
@@ -19,7 +18,7 @@ def singleton(class_):
 @singleton
 class GWdb(object):
     def __init__(self):
-        self.database = 'GCWiiManager.db'
+        self.database = ':memory:'
         self.gameList = {}
         self.fileName = 'wiitdb.txt'
         self.con = sqlite3.connect(self.database)
