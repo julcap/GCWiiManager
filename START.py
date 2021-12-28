@@ -12,10 +12,10 @@ class GCWii(Ui_MainWindow, QtWidgets.QMainWindow):
         self.setupUi(self)
         self.box = 'blanc-case.png'
         self.disc = 'blanc-disc.png'
-        self.source_directory = '/home/jca/games'
+        self.source_directory = ''
         self.source_title_list_hash_map = {}
         self.source_file_list_hash_map = {}
-        self.destination_directory = '/home/jca/converted'
+        self.destination_directory = ''
         self.destination_title_list_hash_map = {}
         self.boxArtWork = os.path.join(os.getcwd(), 'wii', 'cover3D')
         self.discArtWork = os.path.join(os.getcwd(), 'wii', 'disc')
