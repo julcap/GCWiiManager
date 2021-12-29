@@ -52,7 +52,7 @@ def get_art_work(language=None, identifier=None, cover3D=True, disc=True) -> obj
             if disc:
                 output_dir = os.path.join(disc_path, language)
                 if not os.path.exists(output_dir):
-                    os.mkdir(output_dir)
+                    os.makedirs(output_dir, exist_ok=True)
                 output_file = os.path.join(output_dir, identifier + '.png')
                 if not os.path.exists(output_file):
                     request.urlretrieve(art_url + '/disc/' + language + '/' + identifier + '.png', output_file)
@@ -60,7 +60,7 @@ def get_art_work(language=None, identifier=None, cover3D=True, disc=True) -> obj
             if cover3D:
                 output_dir = os.path.join(cover3_d_path, language)
                 if not os.path.exists(output_dir):
-                    os.mkdir(output_dir)
+                    os.makedirs(output_dir, exist_ok=True)
                 output_file = os.path.join(output_dir, identifier + '.png')
                 if not os.path.exists(output_file):
                     request.urlretrieve(art_url + '/cover3D/' + language + '/' + identifier + '.png',
