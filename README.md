@@ -11,7 +11,7 @@ Files supported: ISO, WBFS.
 * Python3
 
 ### Installation of dependencies
-Dependency list is has been generated with `pipreqs` and can be installed using `pip`
+Dependency list has been generated using `pipreqs` and can be installed using `pip`
 ```
 pip install -r requirements.txt
 ```
