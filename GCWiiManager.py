@@ -2,12 +2,17 @@
 #
 # Julian Capilla
 # lyhan_jr@hotmail.com
-
-import re, os
-import filecmp
+import os
+import re
+import ast
 import shutil
+import filecmp
 
+import GameTDBclient
 from GWdb import GWdb
+
+game_tdb_file = 'wiitdb.txt'
+manually_maintained_file = 'AdditionalIdentifiers.txt'
 
 
 def get_game_region(code):
@@ -54,6 +59,25 @@ def get_game_region(code):
         return 'EN'
 
 
+def get_game_identifiers():
+    try:
+        with open(game_tdb_file, 'r') as file:
+            game_tdb_data = ast.literal_eval(file.read())
+    except FileNotFoundError:
+        game_tdb_data = refresh_game_tdb_identifiers()
+    with open(manually_maintained_file, 'r') as file:
+        manually_maintained_data = ast.literal_eval(file.read())
+    game_tdb_data.update(manually_maintained_data)
+    return game_tdb_data
+
+
+def refresh_game_tdb_identifiers():
+    game_tdb_data = GameTDBclient.fetch_game_identifiers()
+    with open(game_tdb_file, 'w') as file:
+        file.write(str(game_tdb_data))
+    return game_tdb_data
+
+
 # Check supported file extensions
 def is_file_extension_supported(filename):
     """ @filename: absolute path to file """
@@ -84,7 +108,6 @@ def get_game_identifier(file):
     code = re.search(b'[A-Z0-9]{6}', get_bite_chunk(file, 1024))
     if code:
         # The string is always in same location for Wii and GameCube identifiers
-        # E.g if an ubuntu iso image is passed, it will return false.
         if is_valid_wii_identifier_location(code.span()) or is_valid_gc_identifier_location(code.span()):
             return code.group(0).decode('ascii')
         else:
@@ -177,18 +200,10 @@ def refresh_db_source_table(full_path_file_list, list_name):
                       (code, file, extension, 'source'))
 
 
-def get_output_file_absolute_path(input_file, destination, folder_name, file_extension, game_code, multi_disc):
-    print("*****************\n"
-          "input_file:\t'{}'\n"
-          "destination:\t'{}'\n"
-          "folder_name:\t'{}'\n"
-          "file_extension:\t'{}'\n"
-          "game_code:\t'{}'\n"
-          "multidisc:\t'{}'\n"
-          "*****************\n".format(input_file, destination, folder_name, file_extension, game_code, multi_disc))
+def get_output_file_absolute_path(input_file, destination, folder_name, file_extension, game_identifier, is_multi_disc):
     file_name = ''
     if file_extension == 'ISO':
-        if multi_disc:
+        if is_multi_disc:
             disc = get_disc_number(input_file)
             if disc == 1:
                 file_name = 'game'
@@ -197,8 +212,10 @@ def get_output_file_absolute_path(input_file, destination, folder_name, file_ext
         else:
             file_name = 'game'
     elif file_extension == 'WBFS':
-        file_name = game_code
-    return os.path.join(destination, folder_name, file_name + '.' + file_extension.lower())
+        file_name = game_identifier
+    absolute_path = os.path.join(destination, folder_name, file_name + '.' + file_extension.lower())
+    print("Input:\t\t'{}'\nDestination:\t'{}'\nMulti disc:\t'{}'\n".format(input_file, absolute_path, is_multi_disc))
+    return absolute_path
 
 
 def create_destination_folder(absolute_path):

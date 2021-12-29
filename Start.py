@@ -1,8 +1,12 @@
-import sys, time, os
+import os
+import sys
+import time
+
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtCore import QObject, QThread, pyqtSignal
+
 import GCWiiManager
-import gametdb
+import GameTDBclient
 from GCWiiMainWindow import Ui_MainWindow
 
 
@@ -32,7 +36,6 @@ class GCWii(Ui_MainWindow, QtWidgets.QMainWindow):
         self.progressBar_fileProgress.setVisible(False)
         self.progressBar_destination.setVisible(False)
         self.label_status.setVisible(False)
-        self.gametdb = gametdb.GameTDB()
         self.current_selection = {}
         self.games_to_export = {}
         if self.source_directory:
@@ -124,10 +127,13 @@ class GCWii(Ui_MainWindow, QtWidgets.QMainWindow):
         disc = str(os.path.join(self.discArtWork, self.disc))
         if code != '0000':
             region = GCWiiManager.get_game_region(code)
-            if (self.gametdb.getArtWork(region, code, True, None)):
-                box = str(os.path.join(self.boxArtWork, region, code + ".png"))
-            if (self.gametdb.getArtWork(region, code, None, True)):
-                disc = str(os.path.join(self.discArtWork, region, code + ".png"))
+            try:
+                if GameTDBclient.get_art_work(region, code, True, None):
+                    box = str(os.path.join(self.boxArtWork, region, code + ".png"))
+                if GameTDBclient.get_art_work(region, code, None, True):
+                    disc = str(os.path.join(self.discArtWork, region, code + ".png"))
+            except GameTDBclient.ErrorFetchingData:
+                print("Unable to fetch artwork for game id: '{}' region: '{}'".format(code, region))
         self.label_boxArtWork.setPixmap(QtGui.QPixmap(box))
         self.label_dicArtWork.setPixmap(QtGui.QPixmap(disc))
 

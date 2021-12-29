@@ -11,7 +11,7 @@ Files supported: ISO, WBFS.
 
 ### Instructions
 ```
-[jca@desktop GCWiiManager]$ python3.9 START.py  # Launch GUI
+[jca@desktop GCWiiManager]$ python3.9 Start.py  # Launch GUI
 
 ```
 
