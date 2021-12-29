@@ -4,7 +4,7 @@ Tool to export GameCube and Wii games to external hard disk.
 
 Files supported: ISO, WBFS.
 
-![alt text](images/example_preview.png){:height="684px" width="654px"}
+<img src="images/example_preview.png" width="684px" height="654px">
 
 ### Requirements
 
