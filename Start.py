@@ -2,8 +2,8 @@ import os
 import sys
 import time
 
-from PyQt5 import QtCore, QtGui, QtWidgets
-from PyQt5.QtCore import QObject, QThread, pyqtSignal
+from PyQt5 import QtCore, QtGui, QtWidgets, Qt
+from PyQt5.QtCore import QObject, QThread, pyqtSignal, QStringListModel, QModelIndex
 
 import GCWiiManager
 import GameTDBclient
@@ -17,14 +17,13 @@ class GCWii(Ui_MainWindow, QtWidgets.QMainWindow):
         self.default_box_artwork = str(os.path.join('images', 'blanc-case.png'))
         self.default_disc_artwork = str(os.path.join('images', 'blanc-disc.png'))
         self.source_directory = ''
-        self.source_title_list_hash_map = {}
-        self.source_file_list_hash_map = {}
+        self.source_game_collection = {}
         self.destination_directory = ''
-        self.destination_title_list_hash_map = {}
+        self.destination_game_collection = {}
         self.box_artwork_path = os.path.join(os.getcwd(), 'images', 'cover3D')
         self.disc_artwork_path = os.path.join(os.getcwd(), 'images', 'disc')
-        self.source_btn.clicked.connect(lambda: self.updateSourceList(True))
-        self.destination_btn.clicked.connect(lambda: self.updateDestinationList(True))
+        self.source_btn.clicked.connect(lambda: self.update_source_list(True))
+        self.destination_btn.clicked.connect(lambda: self.update_destination_list(True))
         self.export_btn.clicked.connect(lambda: self.exportAll())
         self.listView_source.clicked.connect(lambda: self.updateArtWork('source'))
         self.listView_destination.clicked.connect(lambda: self.updateArtWork('destination'))
@@ -39,9 +38,9 @@ class GCWii(Ui_MainWindow, QtWidgets.QMainWindow):
         self.current_selection = {}
         self.games_to_export = {}
         if self.source_directory:
-            self.updateSourceList()
+            self.update_source_list()
         if self.destination_directory:
-            self.updateDestinationList()
+            self.update_destination_list()
         self.show()
 
     def exportSelection(self):
@@ -52,10 +51,10 @@ class GCWii(Ui_MainWindow, QtWidgets.QMainWindow):
         """
         results = dict()
         for index in self.listView_source.selectedIndexes():
-            title = QtCore.QModelIndex.data(index)
-            for key in self.source_title_list_hash_map.keys():
-                if self.source_title_list_hash_map[key] == title:
-                    results[key] = title
+            title = QModelIndex.data(index)
+            for key in self.source_game_collection.keys():
+                if self.source_game_collection[key]["title"] == title:
+                    results[key] = self.source_game_collection[key]
         self.games_to_export = results
         self.export()
 
@@ -64,7 +63,7 @@ class GCWii(Ui_MainWindow, QtWidgets.QMainWindow):
         pass
 
     def exportAll(self):
-        self.games_to_export = self.source_title_list_hash_map
+        self.games_to_export = self.source_game_collection
         self.export()
 
     def update_status_label(self, text=''):
@@ -79,7 +78,7 @@ class GCWii(Ui_MainWindow, QtWidgets.QMainWindow):
         msgBox.setText(text)
         if textInfo:
             msgBox.setInformativeText(textInfo)
-        msgBox.setTextFormat(QtCore.Qt.RichText)
+        msgBox.setTextFormat(Qt.RichText)
         if type == 'y/n':
             msgBox.setStandardButtons(msgBox.Yes | msgBox.No)
             result = msgBox.exec_()
@@ -145,14 +144,14 @@ class GCWii(Ui_MainWindow, QtWidgets.QMainWindow):
         """
         if QlistViewName == 'source':
             model = self.listView_source.currentIndex()
-            titles_dict = self.source_title_list_hash_map
+            games_collection = self.source_game_collection
         elif QlistViewName == 'destination':
             model = self.listView_destination.currentIndex()
-            titles_dict = self.destination_title_list_hash_map
-        title = QtCore.QModelIndex.data(model)
-        for code in titles_dict:
-            if titles_dict[code] == title:
-                return code
+            games_collection = self.destination_game_collection
+        title = QModelIndex.data(model)
+        for identifier in games_collection:
+            if games_collection[identifier]["title"] == title:
+                return identifier
 
     def selectDirectory(self):
         """
@@ -162,47 +161,41 @@ class GCWii(Ui_MainWindow, QtWidgets.QMainWindow):
         self.fileDialog = QtWidgets.QFileDialog.getExistingDirectory(self)
         return self.fileDialog
 
-    def getTitleList(self, games):
-        """
-        Data to pass to the QlistView table
-        :param gamesDict:
-        :return:
-        """
-        result = []
-        for key in games:
-            result.append(games[key])
-        result.sort()
-        return QtCore.QStringListModel(result)
-
-    def updateSourceList(self, select=False):
+    def update_source_list(self, select=False):
         try:
             if select:
                 self.source_directory = self.selectDirectory()
             if self.source_directory == '':
                 return
             list_of_found_files = GCWiiManager.find_supported_files(self.source_directory)
-            self.source_title_list_hash_map = GCWiiManager.generate_identifier_title_dict(list_of_found_files)
+            self.source_game_collection = GCWiiManager.generate_game_collection(list_of_found_files)
             self.label_source.setText('Source: ' + self.source_directory)
             GCWiiManager.refresh_db_source_table(list_of_found_files, 'source')
-            self.listView_source.setModel(self.getTitleList(self.source_title_list_hash_map))
+            list_of_titles = GCWiiManager.get_sorted_game_titles(self.source_game_collection)
+            self.listView_source.setModel(QStringListModel(list_of_titles))
+            selection_model = self.listView_source.selectionModel()
+            selection_model.selectionChanged.connect(lambda: self.updateArtWork('source'))
+
             self.listView_source.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
-            self.source_file_list_hash_map = GCWiiManager.generate_identifier_absolute_path_dict(list_of_found_files)
 
         except PermissionError as err:
             self.msgBox('You do not have permission to read the source directory selected.', str(err), 'message')
 
-    def updateDestinationList(self, select=False):
+    def update_destination_list(self, select=False):
         try:
             if select:
                 self.destination_directory = self.selectDirectory()
             if self.destination_directory == '':
                 return
             list_of_found_files = GCWiiManager.find_supported_files(self.destination_directory)
-            self.destination_title_list_hash_map = GCWiiManager.generate_identifier_title_dict(list_of_found_files)
+            self.destination_game_collection = GCWiiManager.generate_game_collection(list_of_found_files)
             self.label_destination.setText('Destination: ' + self.destination_directory)
             self.destination_directory = self.destination_directory
             GCWiiManager.refresh_db_source_table(list_of_found_files, 'destination')
-            self.listView_destination.setModel(self.getTitleList(self.destination_title_list_hash_map))
+            list_of_titles = GCWiiManager.get_sorted_game_titles(self.destination_game_collection)
+            self.listView_destination.setModel(QStringListModel(list_of_titles))
+            selection_model = self.listView_destination.selectionModel()
+            selection_model.selectionChanged.connect(lambda: self.updateArtWork('destination'))
             self.listView_source.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
         except PermissionError as err:
             self.msgBox('You do not have permission to read the source directory selected.', str(err), 'message')
@@ -212,7 +205,7 @@ class GCWii(Ui_MainWindow, QtWidgets.QMainWindow):
         Start thread for copy items from one list to the other
         :return:
         """
-        if not self.source_title_list_hash_map:
+        if not self.source_game_collection:
             return self.msgBox("Please select source folder", None, 'message')
         if not self.source_directory:
             return self.msgBox("Please select source folder", None, 'message')
@@ -229,8 +222,7 @@ class GCWii(Ui_MainWindow, QtWidgets.QMainWindow):
 
         # Create a worker object
         self.worker = CopyWorker()
-        self.worker.initialize(self.games_to_export, self.source_file_list_hash_map, self.destination_directory,
-                               self.updateFileProgressBar)
+        self.worker.initialize(self.games_to_export, self.destination_directory, self.updateFileProgressBar)
 
         # Move worker to the thread
         self.worker.moveToThread(self.thread)
@@ -240,7 +232,7 @@ class GCWii(Ui_MainWindow, QtWidgets.QMainWindow):
         self.worker.finished.connect(self.thread.quit)
         self.worker.progress.connect(self.updateGlobalProgressBar)
         self.worker.processing.connect(self.update_status_label)
-        self.worker.finished.connect(self.updateDestinationList)
+        self.worker.finished.connect(self.update_destination_list)
         self.thread.finished.connect(self.resetProgressBars)
         self.thread.finished.connect(self.hideProgressBars)
 
@@ -269,52 +261,49 @@ class CopyWorker(QObject):
         self.games_to_export = {}
         self.update_global_progress = {}
         self.update_file_progress = {}
-        self.source_file_hash_map = {}
         self.destination_directory = ''
 
-    def initialize(self, games_to_export, source_file_hash_map, destination_directory, update_file_progress):
+    def initialize(self, games_to_export, destination_directory, update_file_progress):
         self.games_to_export = games_to_export
         self.destination_directory = destination_directory
-        self.source_file_hash_map = source_file_hash_map
         self.update_file_progress = update_file_progress
 
     def export(self):
         self._isRunning = True
         count = 0
         total = len(self.games_to_export)
-        for code in self.games_to_export.keys():
+        for identifier in self.games_to_export.keys():
             if self._isRunning:
-                inputFile = self.source_file_hash_map.get(code)
-                if isinstance(inputFile, list):
-                    for file in inputFile:
+                if isinstance(self.games_to_export[identifier]["files"], list):
+                    for file in self.games_to_export[identifier]["files"]:
                         self.processing.emit(file)
-                        self.processFile(file, code, True)
+                        self.processFile(file, identifier, True)
                 else:
-                    self.processing.emit(inputFile)
-                    self.processFile(inputFile, code)
+                    self.processing.emit(self.games_to_export[identifier]["files"])
+                    self.processFile(self.games_to_export[identifier]["files"], identifier)
             count += 1
             self.progress.emit(int((count * 100) / total))
             self.finished.emit()
             self.processing.emit('')
             self.threadFileProgress.quit()
 
-    def processFile(self, inputFile, code, multidisc=False):
+    def processFile(self, inputFile, identifier, multidisc=False):
         extension = (os.path.splitext(inputFile))[1].lstrip('.').upper()
-        name = self.games_to_export.get(code)
-        folderName = GCWiiManager.get_destination_normalized_folder_name(name, code)
-        outputFile = GCWiiManager.get_output_file_absolute_path(inputFile, self.destination_directory, folderName,
-                                                                extension, code,
-                                                                multidisc)
-        GCWiiManager.create_destination_folder(outputFile)
+        game = self.games_to_export.get(identifier)
+        folder_name = GCWiiManager.get_destination_normalized_folder_name(game["title"], identifier)
+        output_file = GCWiiManager.get_output_file_absolute_path(inputFile, self.destination_directory, folder_name,
+                                                                 extension, identifier,
+                                                                 multidisc)
+        GCWiiManager.create_destination_folder(output_file)
 
-        if outputFile:
-            self.threadFileProgress = ThreadUpdateFileProgress(inputFile, outputFile)
+        if output_file:
+            self.threadFileProgress = ThreadUpdateFileProgress(inputFile, output_file)
             self.threadFileProgress.progress.connect(self.update_file_progress)
             self.threadFileProgress.start()
-            GCWiiManager.copy_file(inputFile, outputFile)
+            GCWiiManager.copy_file(inputFile, output_file)
 
-    def updateFileProgress(self, progressBarName, value, max, active=True):
-        self.emit(QtCore.SIGNAL('updateProgressBar'), progressBarName, value, max, active)
+    def updateFileProgress(self, progress_bar_name, value, total, active=True):
+        self.emit(QtCore.SIGNAL('updateProgressBar'), progress_bar_name, value, total, active)
 
     def stop(self):
         self._isRunning = False

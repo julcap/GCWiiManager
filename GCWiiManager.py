@@ -71,6 +71,19 @@ def get_game_identifiers():
     return game_tdb_data
 
 
+def get_sorted_game_titles(game_collection):
+    """
+    Data to pass to the QlistView table
+    :param game_collection:
+    :return:
+    """
+    result = []
+    for identifier in game_collection:
+        result.append(game_collection[identifier]["title"])
+    result.sort()
+    return result
+
+
 def refresh_game_tdb_identifiers():
     game_tdb_data = GameTDBclient.fetch_game_identifiers()
     with open(game_tdb_file, 'w') as file:
@@ -152,33 +165,27 @@ def copy_file(source_file, destination_file):
     shutil.copy2(source_file, destination_file)
 
 
-def generate_identifier_title_dict(full_path_file_list=[]):
-    """ Return a dictionary sonsisting of game identifier and title {"AGCDEF" : "Game title"} """
+def generate_game_collection(full_path_file_list=[]):
+    """
+    Return a game collection
+    {"AGCDEF": { "title": "Game title", "files": ["/abs/olute/path.iso"], "extension": "ISO" },"GHIJK":{ ... } }
+    """
     if not full_path_file_list:
-        return {'0000': 'No Wii or GameCube game was found'}
-    result = {}
+        return {'0000': {'title': 'No Wii or GameCube game was found'}}
+    game_collection = {}
     for file in full_path_file_list:
-        key = get_game_identifier(file)
-        db = GWdb()
-        result[key] = db.select('gameTitles', '*', {'code': key})[0][2]
-    return result
-
-
-def generate_identifier_absolute_path_dict(full_path_file_list=[]):
-    """ Return a dictionary {"AGCDEF" : "/Absolut/file/path.iso"} """
-    if not full_path_file_list:
-        return {'0000': 'Folder is empty'}
-
-    result = {}
-    for file in full_path_file_list:
-        key = get_game_identifier(file)
-        db = GWdb()
-        data = db.select('gamesFound', '*', {'code': key})
-        if len(data) > 1:
-            result[key] = [data[0][2], data[1][2]]
-        else:
-            result[key] = data[0][2]
-    return result
+        identifier = get_game_identifier(file)
+        if identifier not in game_collection.keys():
+            game_collection[identifier] = {}
+        if "files" not in game_collection[identifier].keys():
+            game_collection[identifier]["files"] = file
+            db = GWdb()
+            game_collection[identifier]["title"] = db.select('gameTitles', '*', {'code': identifier})[0][2]
+            game_collection[identifier]["extension"] = os.path.splitext(file)[1].upper()
+        elif game_collection[identifier]["files"] != file:
+            # Assuming there will not be more than 2 discs
+            game_collection[identifier]["files"] = [game_collection[identifier]["files"], file]
+    return game_collection
 
 
 def refresh_db_source_table(full_path_file_list, list_name):
