@@ -104,7 +104,7 @@ class Ui_MainWindow(object):
 
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
-        MainWindow.setWindowTitle(_translate("MainWindow", "MainWindow"))
+        MainWindow.setWindowTitle(_translate("MainWindow", "GCWiiManager"))
         self.source_btn.setText(_translate("MainWindow", "Source"))
         self.destination_btn.setText(_translate("MainWindow", "Destination"))
         self.exportSelected_btn.setText(_translate("MainWindow", "Export Selected"))

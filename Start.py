@@ -14,15 +14,15 @@ class GCWii(Ui_MainWindow, QtWidgets.QMainWindow):
     def __init__(self):
         super(GCWii, self).__init__()
         self.setupUi(self)
-        self.box = 'blanc-case.png'
-        self.disc = 'blanc-disc.png'
+        self.default_box_artwork = str(os.path.join('images', 'blanc-case.png'))
+        self.default_disc_artwork = str(os.path.join('images', 'blanc-disc.png'))
         self.source_directory = ''
         self.source_title_list_hash_map = {}
         self.source_file_list_hash_map = {}
         self.destination_directory = ''
         self.destination_title_list_hash_map = {}
-        self.boxArtWork = os.path.join(os.getcwd(), 'wii', 'cover3D')
-        self.discArtWork = os.path.join(os.getcwd(), 'wii', 'disc')
+        self.box_artwork_path = os.path.join(os.getcwd(), 'images', 'cover3D')
+        self.disc_artwork_path = os.path.join(os.getcwd(), 'images', 'disc')
         self.source_btn.clicked.connect(lambda: self.updateSourceList(True))
         self.destination_btn.clicked.connect(lambda: self.updateDestinationList(True))
         self.export_btn.clicked.connect(lambda: self.exportAll())
@@ -31,8 +31,8 @@ class GCWii(Ui_MainWindow, QtWidgets.QMainWindow):
         self.exit_btn.clicked.connect(lambda: self.quit())
         self.exportSelected_btn.clicked.connect(lambda: self.exportSelection())
         self.cancel_btn.clicked.connect(lambda: self.cancel_copy())
-        self.label_boxArtWork.setPixmap(QtGui.QPixmap(str(os.path.join(self.boxArtWork, self.box))))
-        self.label_dicArtWork.setPixmap(QtGui.QPixmap(str(os.path.join(self.discArtWork, self.disc))))
+        self.label_boxArtWork.setPixmap(QtGui.QPixmap(self.default_box_artwork))
+        self.label_dicArtWork.setPixmap(QtGui.QPixmap(self.default_disc_artwork))
         self.progressBar_fileProgress.setVisible(False)
         self.progressBar_destination.setVisible(False)
         self.label_status.setVisible(False)
@@ -123,15 +123,15 @@ class GCWii(Ui_MainWindow, QtWidgets.QMainWindow):
 
     def updateArtWork(self, list):
         code = self.getSelection(list)
-        box = str(os.path.join(self.boxArtWork, self.box))
-        disc = str(os.path.join(self.discArtWork, self.disc))
+        box = self.default_box_artwork
+        disc = self.default_disc_artwork
         if code != '0000':
             region = GCWiiManager.get_game_region(code)
             try:
                 if GameTDBclient.get_art_work(region, code, True, None):
-                    box = str(os.path.join(self.boxArtWork, region, code + ".png"))
+                    box = str(os.path.join(self.box_artwork_path, region, code + ".png"))
                 if GameTDBclient.get_art_work(region, code, None, True):
-                    disc = str(os.path.join(self.discArtWork, region, code + ".png"))
+                    disc = str(os.path.join(self.disc_artwork_path, region, code + ".png"))
             except GameTDBclient.ErrorFetchingData:
                 print("Unable to fetch artwork for game id: '{}' region: '{}'".format(code, region))
         self.label_boxArtWork.setPixmap(QtGui.QPixmap(box))

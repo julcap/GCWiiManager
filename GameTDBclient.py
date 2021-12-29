@@ -40,8 +40,8 @@ def get_art_work(language=None, identifier=None, cover3D=True, disc=True) -> obj
     @param cover3D: Boolean
     @param disc: Boolean
     """
-    disc_path = os.path.join(os.getcwd(), 'wii', 'disc')
-    cover3_d_path = os.path.join(os.getcwd(), 'wii', 'cover3D')
+    disc_path = os.path.join(os.getcwd(), 'images', 'disc')
+    cover3_d_path = os.path.join(os.getcwd(), 'images', 'cover3D')
     art_url = 'http://art.gametdb.com/wii'
 
     if language == None or identifier == None:

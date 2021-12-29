@@ -4,15 +4,21 @@ Tool to export GameCube and Wii games to external hard disk.
 
 Files supported: ISO, WBFS.
 
+![alt text](images/example_preview.png){:height="684px" width="654px"}
+
 ### Requirements
 
-* Python 3.9
-* PyQt5
+* Python3
 
-### Instructions
+### Installation of dependencies
+Dependency list is has been generated with `pipreqs` and can be installed using `pip`
 ```
-[jca@desktop GCWiiManager]$ python3.9 Start.py  # Launch GUI
-
+pip install -r requirements.txt
 ```
 
+
+### Start the program
+```
+python3 Start.py
+```
 
