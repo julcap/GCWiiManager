@@ -1,7 +1,4 @@
 #!/usr/bin/env sh
 
-# Ubuntu
-#/usr/bin/python3 /usr/lib/python3/dist-packages/PyQt4/uic/pyuic.py $1 -o /home/jca/Desktop/GCWiiManager/GCWiiMainWindow.py
-
-# Mac OSX
-/opt/local/bin/pyuic4-3.5 $1 -o /Users/jca/PycharmProjects/GCWiiManager/GCWiiMainWindow.py
+# Linux
+$(which pyuic5) $1 -o GCWiiMainWindow.py
