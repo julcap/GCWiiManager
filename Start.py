@@ -5,8 +5,8 @@ import time
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtCore import QObject, QThread, pyqtSignal, QStringListModel, QModelIndex
 
-import GCWiiManager
 import GameTDBclient
+from GCWiiManager import GCWiiManager
 from GCWiiMainWindow import Ui_MainWindow
 
 
@@ -17,6 +17,7 @@ class GCWii(Ui_MainWindow):
         app = QtWidgets.QApplication(sys.argv)
         self.MainWindow = QtWidgets.QMainWindow()
         self.setupUi(self.MainWindow)
+        self.manager = GCWiiManager()
         self.default_box_artwork = str(os.path.join('images', 'blanc-case.png'))
         self.default_disc_artwork = str(os.path.join('images', 'blanc-disc.png'))
         self.source_directory = '/home/jca/games'
@@ -99,7 +100,7 @@ class GCWii(Ui_MainWindow):
         box = self.default_box_artwork
         disc = self.default_disc_artwork
         if code != '0000':
-            region = GCWiiManager.get_game_region(code)
+            region = self.manager.get_game_region(code)
             try:
                 if GameTDBclient.get_art_work(region, code, True, None):
                     box = str(os.path.join(self.box_artwork_path, region, code + ".png"))
@@ -111,6 +112,8 @@ class GCWii(Ui_MainWindow):
         self.label_disc.setPixmap(QtGui.QPixmap(disc))
 
     def get_selection(self, QlistViewName):
+        games_collection = dict()
+        model = None
         if QlistViewName == 'source':
             model = self.listView_source.currentIndex()
             games_collection = self.source_game_collection
@@ -131,11 +134,10 @@ class GCWii(Ui_MainWindow):
                 self.source_directory = self.select_directory()
             if self.source_directory == '':
                 return
-            list_of_found_files = GCWiiManager.find_supported_files(self.source_directory)
-            self.source_game_collection = GCWiiManager.generate_game_collection(list_of_found_files)
+            list_of_found_files = self.manager.find_supported_files(self.source_directory)
+            self.source_game_collection = self.manager.generate_game_collection(list_of_found_files)
             self.label_source.setText('Source: ' + self.source_directory)
-            GCWiiManager.refresh_db_source_table(list_of_found_files, 'source')
-            list_of_titles = GCWiiManager.get_sorted_game_titles(self.source_game_collection)
+            list_of_titles = self.manager.get_sorted_game_titles(self.source_game_collection)
             self.listView_source.setModel(QStringListModel(list_of_titles))
             selection_model = self.listView_source.selectionModel()
             selection_model.selectionChanged.connect(lambda: self.update_art_work('source'))
@@ -151,12 +153,11 @@ class GCWii(Ui_MainWindow):
                 self.destination_directory = self.select_directory()
             if self.destination_directory == '':
                 return
-            list_of_found_files = GCWiiManager.find_supported_files(self.destination_directory)
-            self.destination_game_collection = GCWiiManager.generate_game_collection(list_of_found_files)
+            list_of_found_files = self.manager.find_supported_files(self.destination_directory)
+            self.destination_game_collection = self.manager.generate_game_collection(list_of_found_files)
             self.label_destination.setText('Destination: ' + self.destination_directory)
             self.destination_directory = self.destination_directory
-            GCWiiManager.refresh_db_source_table(list_of_found_files, 'destination')
-            list_of_titles = GCWiiManager.get_sorted_game_titles(self.destination_game_collection)
+            list_of_titles = self.manager.get_sorted_game_titles(self.destination_game_collection)
             self.listView_destination.setModel(QStringListModel(list_of_titles))
             selection_model = self.listView_destination.selectionModel()
             selection_model.selectionChanged.connect(lambda: self.update_art_work('destination'))
@@ -199,7 +200,6 @@ class GCWii(Ui_MainWindow):
         self.thread.start()
 
     def quit(self):
-        GCWiiManager.quit()
         sys.exit(0)
 
     def cancel_copy(self):
@@ -223,6 +223,7 @@ class CopyWorker(QObject):
         super(CopyWorker, self).__init__()
         self.thread_file_progress = ThreadUpdateFileProgress()
         self._is_running = False
+        self.manager = GCWiiManager()
         self.games_to_export = games_to_export
         self.destination_directory = destination_directory
 
@@ -238,7 +239,7 @@ class CopyWorker(QObject):
                         self.process_file(file, identifier, True)
                 else:
                     self.processing.emit(self.games_to_export[identifier]["files"])
-                    self.process_file(self.games_to_export[identifier]["files"], identifier)
+                    self.process_file(self.games_to_export[identifier]["files"], identifier, False)
             count += 1
             self.progress.emit(int((count * 100) / total))
             self.finished.emit()
@@ -248,16 +249,16 @@ class CopyWorker(QObject):
     def process_file(self, input_file, identifier, multidisc=False):
         extension = (os.path.splitext(input_file))[1].lstrip('.').upper()
         game = self.games_to_export.get(identifier)
-        folder_name = GCWiiManager.get_destination_normalized_folder_name(game["title"], identifier)
-        output_file = GCWiiManager.get_output_file_absolute_path(input_file, self.destination_directory, folder_name,
+        folder_name = self.manager.get_destination_normalized_folder_name(game["title"], identifier)
+        output_file = self.manager.get_output_file_absolute_path(input_file, self.destination_directory, folder_name,
                                                                  extension, identifier,
                                                                  multidisc)
-        GCWiiManager.create_destination_folder(output_file)
+        self.manager.create_destination_folder(output_file)
 
         if output_file:
             self.thread_file_progress.initialize(input_file, output_file)
             self.thread_file_progress.start()
-            GCWiiManager.copy_file(input_file, output_file)
+            self.manager.copy_file(input_file, output_file)
 
     def stop(self):
         self._is_running = False
