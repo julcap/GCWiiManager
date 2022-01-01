@@ -98,6 +98,7 @@ class Ui_MainWindow(object):
         self.listView_destination = QtWidgets.QListView(self.centralwidget)
         self.listView_destination.setContextMenuPolicy(QtCore.Qt.ActionsContextMenu)
         self.listView_destination.setDragDropMode(QtWidgets.QAbstractItemView.DropOnly)
+        self.listView_destination.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
         self.listView_destination.setObjectName("listView_destination")
         self.horizontalLayout_2.addWidget(self.listView_destination)
         self.verticalLayout.addLayout(self.horizontalLayout_2)
@@ -152,8 +153,7 @@ class Ui_MainWindow(object):
         self.action_reload_destination.setText(_translate("MainWindow", "Reload"))
         self.action_reload_destination.setToolTip(_translate("MainWindow", "Reload directory contents"))
         self.action_delete_all_items_in_destination.setText(_translate("MainWindow", "Delete all items"))
-        self.action_delete_all_items_in_destination.setToolTip(
-            _translate("MainWindow", "Delete all items in directory"))
+        self.action_delete_all_items_in_destination.setToolTip(_translate("MainWindow", "Delete all items in directory"))
         self.action_reload_source.setText(_translate("MainWindow", "Reload"))
         self.action_reload_source.setToolTip(_translate("MainWindow", "Reload directory contents"))
         self.action_select_folder_source.setText(_translate("MainWindow", "Select folder"))

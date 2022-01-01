@@ -19,6 +19,6 @@ pip install -r requirements.txt
 
 ### Start the program
 ```
-python3 Start.py
+python3 main.py
 ```
 

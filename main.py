@@ -8,6 +8,7 @@ from PyQt5.QtCore import QThread, pyqtSignal, QStringListModel, QModelIndex
 import GameTDBclient
 from GCWiiManager import GCWiiManager
 from GCWiiMainWindow import Ui_MainWindow
+from MessageBox import MessageBox
 
 
 class GCWii(Ui_MainWindow):
@@ -18,6 +19,7 @@ class GCWii(Ui_MainWindow):
         self.MainWindow = QtWidgets.QMainWindow()
         self.max_treads = QThread.idealThreadCount()
         self.setupUi(self.MainWindow)
+        self.msg = MessageBox()
         self.manager = GCWiiManager()
         self.default_box_artwork = str(os.path.join('images', 'blanc-case.png'))
         self.default_disc_artwork = str(os.path.join('images', 'blanc-disc.png'))
@@ -31,6 +33,7 @@ class GCWii(Ui_MainWindow):
         self.current_selection = {}
         self.games_to_export = {}
         self.setup_widgets()
+        self.setup_actions()
         self.MainWindow.show()
         if self.source_directory:
             self.update_source_list()
@@ -57,7 +60,6 @@ class GCWii(Ui_MainWindow):
         self.label_disc.setPixmap(QtGui.QPixmap(self.default_disc_artwork))
         self.progressBar_fileProgress.setVisible(False)
         self.progressBar_destination.setVisible(False)
-        self.setup_actions()
 
     def setup_actions(self):
         # Source
@@ -75,9 +77,10 @@ class GCWii(Ui_MainWindow):
         self.update_destination_list()
 
     def delete_selected_in_destination(self):
-        title = self.listView_destination.currentIndex().data()
-        game = self.manager.get_game_from_collection_by_title(title, self.destination_game_collection)
-        self.manager.delete_all_files_in_directory(game["path"])
+        for item in self.listView_destination.selectedIndexes():
+            title = item.data()
+            game = self.manager.get_game_from_collection_by_title(title, self.destination_game_collection)
+            self.manager.delete_all_files_in_directory(game["path"])
         self.update_destination_list()
 
     def export_selection(self):
@@ -173,7 +176,8 @@ class GCWii(Ui_MainWindow):
             self.listView_source.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
 
         except PermissionError as err:
-            self.msgBox('You do not have permission to read the source directory selected.', str(err), 'message')
+            details = f"Directory '{self.source_directory}' can not be read"
+            self.msg.warning('Directory not readable', details, str(err))
 
     def update_destination_list(self, select=False):
         try:
@@ -191,19 +195,20 @@ class GCWii(Ui_MainWindow):
                 lambda: self.update_art_work('destination'))
             self.listView_source.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
         except PermissionError as err:
-            self.msgBox('You do not have permission to read the source directory selected.', str(err), 'message')
+            details = f"Directory '{self.destination_directory}' can not be read"
+            self.msg.warning('Directory not readable', details, str(err))
 
     def export(self):
         if not self.source_game_collection:
-            return self.msgBox("Please select source folder", None, 'message')
+            return self.msg.info("Please select source folder")
         if not self.source_directory:
-            return self.msgBox("Please select source folder", None, 'message')
+            return self.msg.info("Please select source folder")
         if not self.destination_directory:
-            return self.msgBox("Please select destination folder", None, 'message')
+            return self.msg.info("Please select destination folder")
         if self.destination_directory == self.source_directory:
-            return self.msgBox("Source and destination should not be the same directory.", None, 'message')
+            return self.msg.warning("Source and destination should not be the same directory.")
         if not self.games_to_export:
-            return self.msgBox("Please select from from source list_name or click \"Export All\"", None, 'message')
+            return self.msg.info("Please select games from source or click \"Export All\"")
         print("Processing task")
         self.show_progress_bars()
 
@@ -222,6 +227,7 @@ class GCWii(Ui_MainWindow):
         self.worker.progress.connect(self.update_global_progress_bar)
         self.worker.processing.connect(self.handle_worker_processing_update)
         self.worker.finished.connect(self.handle_worker_finished)
+        self.worker.error.connect(self.msg.critical)
 
         self.thread.start()
 
@@ -244,20 +250,20 @@ class GCWii(Ui_MainWindow):
 
     def cancel_copy(self):
         try:
-            print("Canceling after completing current transfer\n")
             self.worker.stop()
             self.thread.quit()
-            self.thread.wait()
             self.reset_progress_bars()
             self.hide_progress_bars()
-        except AttributeError as error:
-            print("Nothing to cancel")
+            print("Canceling \n")
+        except AttributeError:
+            self.msg.info("There is nothing to cancel. ")
 
 
 class CopyWorker(QThread):
     finished = pyqtSignal()
     progress = pyqtSignal(int)
     processing = pyqtSignal(str)
+    error = pyqtSignal(str, str)
 
     def __init__(self, games_to_export, destination_directory):
         super(CopyWorker, self).__init__()
@@ -291,15 +297,20 @@ class CopyWorker(QThread):
         extension = (os.path.splitext(input_file))[1].lstrip('.').upper()
         game = self.games_to_export.get(identifier)
         folder_name = self.manager.get_destination_normalized_folder_name(game["title"], identifier)
-        output_file = self.manager.get_output_file_absolute_path(input_file, self.destination_directory, folder_name,
-                                                                 extension, identifier,
-                                                                 multidisc)
-        self.manager.create_destination_folder(output_file)
+        output_file = self.manager.get_output_file_absolute_path(
+            input_file, self.destination_directory, folder_name,
+            extension, identifier, multidisc
+        )
+        try:
+            self.manager.create_destination_folder(output_file)
 
-        if output_file:
-            self.thread_file_progress.initialize(input_file, output_file)
-            self.thread_file_progress.start()
-            self.manager.copy_file(input_file, output_file)
+            if output_file:
+                self.thread_file_progress.initialize(input_file, output_file)
+                self.thread_file_progress.start()
+                self.manager.copy_file(input_file, output_file)
+        except PermissionError as error:
+            print(error)
+            self.error.emit(error.args[1], f"Can not write to {output_file}")
 
     def stop(self):
         self._is_running = False
