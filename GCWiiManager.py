@@ -122,7 +122,7 @@ class GCWiiManager:
     def is_valid_gc_identifier_location(location):
         return location == (0, 6)
 
-    def get_game_identifier(self, file):
+    def get_game_identifier_from_file(self, file):
         code = re.search(b'[A-Z0-9]{6}', self.get_bite_chunk(file, 1024))
         if code:
             # The string is always in same location for Wii and GameCube identifiers
@@ -132,6 +132,12 @@ class GCWiiManager:
                 return False
         else:
             return False
+
+    @staticmethod
+    def get_game_from_collection_by_title(title, game_collection):
+        for identifier in game_collection.keys():
+            if game_collection[identifier]["title"] == title:
+                return game_collection[identifier]
 
     def get_disc_number(self, file):
         data = self.get_bite_chunk(file, 1024)
@@ -147,14 +153,14 @@ class GCWiiManager:
             if os.path.isdir(file):
                 directories.append(item)
             if os.path.isfile(file) and self.is_file_extension_supported(file):
-                if self.get_game_identifier(file):
+                if self.get_game_identifier_from_file(file):
                     files.append(file)
         for directory in directories:
             directory = os.path.join(path, directory)
             for file in os.listdir(directory):
                 file = os.path.join(directory, file)
                 if os.path.isfile(file) and self.is_file_extension_supported(file):
-                    if self.get_game_identifier(file):
+                    if self.get_game_identifier_from_file(file):
                         files.append(file)
         if files:
             return files
@@ -167,22 +173,44 @@ class GCWiiManager:
             return
         shutil.copy2(source_file, destination_file)
 
+    @staticmethod
+    def delete_all_files_in_directory(directory: str):
+        files = os.scandir(directory)
+        for file in files:
+            file_path = os.path.join(directory, file)
+            try:
+                if os.path.isfile(file_path) or os.path.islink(file_path):
+                    os.unlink(file_path)
+                elif os.path.isdir(file_path):
+                    shutil.rmtree(file_path)
+            except Exception as e:
+                print('Failed to delete %s. Reason: %s' % (file_path, e))
+
     def generate_game_collection(self, full_path_file_list):
         """
-        Return a game collection
-        {"AGCDEF": { "title": "Game title", "files": ["/abs/olute/path.iso"], "extension": "ISO" },"GHIJK":{ ... } }
+        Return a game collection:
+            {
+                "AGCDEF":
+                    {
+                        "title": "Game title",
+                        "files": ["/path/to/dir/file1.iso","/path/to/dir/file2.iso"],
+                        "directory": "/path/to/dir",
+                        "extension": "ISO"
+                    },
+            }
         """
         if not full_path_file_list:
             return {'0000': {'title': 'No Wii or GameCube game was found'}}
         game_collection = {}
         for file in full_path_file_list:
-            identifier = self.get_game_identifier(file)
+            identifier = self.get_game_identifier_from_file(file)
             if identifier not in game_collection.keys():
                 game_collection[identifier] = {}
             if "files" not in game_collection[identifier].keys():
                 game_collection[identifier]["files"] = file
                 game_collection[identifier]["title"] = self.game_title_id_dict[identifier]
-                game_collection[identifier]["extension"] = os.path.splitext(file)[1].upper()
+                game_collection[identifier]["extension"] = os.path.splitext(file)[1].upper().lstrip('.')
+                game_collection[identifier]["path"] = os.path.dirname(file)
             elif game_collection[identifier]["files"] != file:
                 # Assuming there will not be more than 2 discs
                 game_collection[identifier]["files"] = [game_collection[identifier]["files"], file]

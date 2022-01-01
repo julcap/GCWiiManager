@@ -236,6 +236,9 @@
        <layout class="QHBoxLayout" name="horizontalLayout_2">
         <item>
          <widget class="QListView" name="listView_source">
+          <property name="contextMenuPolicy">
+           <enum>Qt::ActionsContextMenu</enum>
+          </property>
           <property name="dragEnabled">
            <bool>true</bool>
           </property>
@@ -255,6 +258,9 @@
         </item>
         <item>
          <widget class="QListView" name="listView_destination">
+          <property name="contextMenuPolicy">
+           <enum>Qt::ActionsContextMenu</enum>
+          </property>
           <property name="dragDropMode">
            <enum>QAbstractItemView::DropOnly</enum>
           </property>
@@ -296,6 +302,54 @@
     </item>
    </layout>
   </widget>
+  <action name="action_delete_selected_in_destination">
+   <property name="text">
+    <string>Delete selected</string>
+   </property>
+   <property name="toolTip">
+    <string>Delete selected item</string>
+   </property>
+  </action>
+  <action name="action_select_folder_destination">
+   <property name="text">
+    <string>Select folder</string>
+   </property>
+   <property name="toolTip">
+    <string>Open directory location</string>
+   </property>
+  </action>
+  <action name="action_reload_destination">
+   <property name="text">
+    <string>Reload</string>
+   </property>
+   <property name="toolTip">
+    <string>Reload directory contents</string>
+   </property>
+  </action>
+  <action name="action_delete_all_items_in_destination">
+   <property name="text">
+    <string>Delete all items</string>
+   </property>
+   <property name="toolTip">
+    <string>Delete all items in directory</string>
+   </property>
+  </action>
+  <action name="action_reload_source">
+   <property name="text">
+    <string>Reload</string>
+   </property>
+   <property name="toolTip">
+    <string>Reload directory contents</string>
+   </property>
+  </action>
+  <action name="action_select_folder_source">
+   <property name="text">
+    <string>Select folder</string>
+   </property>
+   <property name="toolTip">
+    <string>Open directory location</string>
+   </property>
+  </action>
  </widget>
  <resources/>
  <connections/>

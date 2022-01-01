@@ -2,8 +2,8 @@ import os
 import sys
 import time
 
-from PyQt5 import QtCore, QtGui, QtWidgets
-from PyQt5.QtCore import QObject, QThread, pyqtSignal, QStringListModel, QModelIndex
+from PyQt5 import QtGui, QtWidgets
+from PyQt5.QtCore import QThread, pyqtSignal, QStringListModel, QModelIndex
 
 import GameTDBclient
 from GCWiiManager import GCWiiManager
@@ -12,17 +12,19 @@ from GCWiiMainWindow import Ui_MainWindow
 
 class GCWii(Ui_MainWindow):
 
-    def __init__(self):
+    def __init__(self, source='', destination='', clear_destination=False):
         super(GCWii, self).__init__()
         app = QtWidgets.QApplication(sys.argv)
         self.MainWindow = QtWidgets.QMainWindow()
+        self.max_treads = QThread.idealThreadCount()
         self.setupUi(self.MainWindow)
         self.manager = GCWiiManager()
         self.default_box_artwork = str(os.path.join('images', 'blanc-case.png'))
         self.default_disc_artwork = str(os.path.join('images', 'blanc-disc.png'))
-        self.source_directory = '/home/jca/games'
+        self.source_directory = source
         self.source_game_collection = {}
-        self.destination_directory = '/home/jca/converted'
+        self.destination_directory = destination
+        self.clear_destination = clear_destination
         self.destination_game_collection = {}
         self.box_artwork_path = os.path.join(os.getcwd(), 'images', 'cover3D')
         self.disc_artwork_path = os.path.join(os.getcwd(), 'images', 'disc')
@@ -42,6 +44,12 @@ class GCWii(Ui_MainWindow):
         self.export_btn.clicked.connect(self.export_all)
         self.listView_source.clicked.connect(lambda: self.update_art_work('source'))
         self.listView_destination.clicked.connect(lambda: self.update_art_work('destination'))
+        self.listView_destination.addAction(self.action_reload_destination)
+        self.listView_destination.addAction(self.action_select_folder_destination)
+        self.listView_destination.addAction(self.action_delete_selected_in_destination)
+        self.listView_destination.addAction(self.action_delete_all_items_in_destination)
+        self.listView_source.addAction(self.action_reload_source)
+        self.listView_source.addAction(self.action_select_folder_source)
         self.exit_btn.clicked.connect(self.quit)
         self.exportSelected_btn.clicked.connect(self.export_selection)
         self.cancel_btn.clicked.connect(self.cancel_copy)
@@ -49,9 +57,31 @@ class GCWii(Ui_MainWindow):
         self.label_disc.setPixmap(QtGui.QPixmap(self.default_disc_artwork))
         self.progressBar_fileProgress.setVisible(False)
         self.progressBar_destination.setVisible(False)
+        self.setup_actions()
+
+    def setup_actions(self):
+        # Source
+        self.action_reload_source.triggered.connect(self.update_source_list)
+        self.action_select_folder_source.triggered.connect(lambda: self.update_source_list(True))
+
+        # Destination
+        self.action_reload_destination.triggered.connect(self.update_destination_list)
+        self.action_select_folder_destination.triggered.connect(lambda: self.update_destination_list(True))
+        self.action_delete_selected_in_destination.triggered.connect(self.delete_selected_in_destination)
+        self.action_delete_all_items_in_destination.triggered.connect(self.delete_all_in_destination)
+
+    def delete_all_in_destination(self):
+        self.manager.delete_all_files_in_directory(self.destination_directory)
+        self.update_destination_list()
+
+    def delete_selected_in_destination(self):
+        title = self.listView_destination.currentIndex().data()
+        game = self.manager.get_game_from_collection_by_title(title, self.destination_game_collection)
+        self.manager.delete_all_files_in_directory(game["path"])
+        self.update_destination_list()
 
     def export_selection(self):
-        """ Export games marked on the source list """
+        """ Export games marked on the source list_name """
         results = dict()
         for index in self.listView_source.selectedIndexes():
             title = QModelIndex.data(index)
@@ -95,8 +125,8 @@ class GCWii(Ui_MainWindow):
         self.progressBar_fileProgress.setVisible(True)
         self.progressBar_destination.setVisible(True)
 
-    def update_art_work(self, list):
-        code = self.get_selection(list)
+    def update_art_work(self, list_name):
+        code = self.get_selection(list_name)
         box = self.default_box_artwork
         disc = self.default_disc_artwork
         if code != '0000':
@@ -111,13 +141,13 @@ class GCWii(Ui_MainWindow):
         self.label_box.setPixmap(QtGui.QPixmap(box))
         self.label_disc.setPixmap(QtGui.QPixmap(disc))
 
-    def get_selection(self, QlistViewName):
+    def get_selection(self, list_name):
         games_collection = dict()
         model = None
-        if QlistViewName == 'source':
+        if list_name == 'source':
             model = self.listView_source.currentIndex()
             games_collection = self.source_game_collection
-        elif QlistViewName == 'destination':
+        elif list_name == 'destination':
             model = self.listView_destination.currentIndex()
             games_collection = self.destination_game_collection
         title = QModelIndex.data(model)
@@ -139,9 +169,7 @@ class GCWii(Ui_MainWindow):
             self.label_source.setText('Source: ' + self.source_directory)
             list_of_titles = self.manager.get_sorted_game_titles(self.source_game_collection)
             self.listView_source.setModel(QStringListModel(list_of_titles))
-            selection_model = self.listView_source.selectionModel()
-            selection_model.selectionChanged.connect(lambda: self.update_art_work('source'))
-
+            self.listView_source.selectionModel().selectionChanged.connect(lambda: self.update_art_work('source'))
             self.listView_source.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
 
         except PermissionError as err:
@@ -159,8 +187,8 @@ class GCWii(Ui_MainWindow):
             self.destination_directory = self.destination_directory
             list_of_titles = self.manager.get_sorted_game_titles(self.destination_game_collection)
             self.listView_destination.setModel(QStringListModel(list_of_titles))
-            selection_model = self.listView_destination.selectionModel()
-            selection_model.selectionChanged.connect(lambda: self.update_art_work('destination'))
+            self.listView_destination.selectionModel().selectionChanged.connect(
+                lambda: self.update_art_work('destination'))
             self.listView_source.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
         except PermissionError as err:
             self.msgBox('You do not have permission to read the source directory selected.', str(err), 'message')
@@ -175,7 +203,8 @@ class GCWii(Ui_MainWindow):
         if self.destination_directory == self.source_directory:
             return self.msgBox("Source and destination should not be the same directory.", None, 'message')
         if not self.games_to_export:
-            return self.msgBox("Please select from from source list or click \"Export All\"", None, 'message')
+            return self.msgBox("Please select from from source list_name or click \"Export All\"", None, 'message')
+        print("Processing task")
         self.show_progress_bars()
 
         # Create a QThread object
@@ -190,16 +219,27 @@ class GCWii(Ui_MainWindow):
         # Connect signals and slots
         self.thread.started.connect(self.worker.run)
         self.worker.thread_file_progress.progress.connect(self.update_file_progress_bar)
-        self.worker.finished.connect(self.thread.quit)
         self.worker.progress.connect(self.update_global_progress_bar)
-        self.worker.processing.connect(self.update_status_info)
-        self.worker.finished.connect(self.update_destination_list)
-        self.thread.finished.connect(self.reset_progress_bars)
-        self.thread.finished.connect(self.hide_progress_bars)
+        self.worker.processing.connect(self.handle_worker_processing_update)
+        self.worker.finished.connect(self.handle_worker_finished)
 
         self.thread.start()
 
+    def handle_worker_processing_update(self, info=None):
+        self.update_status_info(info)
+        self.update_destination_list()
+
+    def handle_worker_finished(self):
+        print("Finished")
+        self.update_destination_list()
+        self.reset_progress_bars()
+        self.hide_progress_bars()
+        self.worker.quit()
+        self.thread.quit()
+
     def quit(self):
+        if self.clear_destination:
+            self.manager.delete_all_files_in_directory(self.destination_directory)
         sys.exit(0)
 
     def cancel_copy(self):
@@ -214,7 +254,7 @@ class GCWii(Ui_MainWindow):
             print("Nothing to cancel")
 
 
-class CopyWorker(QObject):
+class CopyWorker(QThread):
     finished = pyqtSignal()
     progress = pyqtSignal(int)
     processing = pyqtSignal(str)
@@ -242,9 +282,10 @@ class CopyWorker(QObject):
                     self.process_file(self.games_to_export[identifier]["files"], identifier, False)
             count += 1
             self.progress.emit(int((count * 100) / total))
-            self.finished.emit()
-            self.processing.emit('')
-            self.thread_file_progress.quit()
+            time.sleep(0.5)
+        self.thread_file_progress.quit()
+        self.processing.emit('')
+        self.finished.emit()
 
     def process_file(self, input_file, identifier, multidisc=False):
         extension = (os.path.splitext(input_file))[1].lstrip('.').upper()
@@ -267,13 +308,20 @@ class CopyWorker(QObject):
         self.export()
 
 
-class ThreadUpdateFileProgress(QtCore.QThread):
+class ThreadUpdateFileProgress(QThread):
+    count = 0
     progress = pyqtSignal(int)
 
     def __init__(self):
         super(ThreadUpdateFileProgress, self).__init__()
+        ThreadUpdateFileProgress.count += 1
+        print("Number of file progress threads ", ThreadUpdateFileProgress.count)
         self.input_file = None
         self.output_file = None
+
+    def __del__(self):
+        print("Number of file progress threads ", ThreadUpdateFileProgress.count)
+        ThreadUpdateFileProgress.count -= 1
 
     def initialize(self, input_file=None, output_file=None):
         self.input_file = input_file
@@ -285,13 +333,26 @@ class ThreadUpdateFileProgress(QtCore.QThread):
             try:
                 output_size = os.path.getsize(self.output_file)
                 self.progress.emit(int((output_size * 100) / input_size))
-                time.sleep(0.5)
+                time.sleep(0.2)
                 if input_size == output_size:
                     break
             except FileNotFoundError:
-                time.sleep(0.1)
+                time.sleep(0.2)
         self.progress.emit(0)
 
 
+class ThreadDownload(QThread):
+    def __init__(self, job=None):
+        super(ThreadDownload, self).__init__()
+        self.job = job
+
+    def run(self):
+        self.job()
+
+
 if __name__ == "__main__":
-    GCWii()
+    if len(sys.argv) > 1 and sys.argv[1] == 'debug':
+        print("WARNING: All items in the destination directory will be deleted on 'Exit'!")
+        GCWii('/home/jca/games', '/home/jca/converted', clear_destination=True)
+    else:
+        GCWii()
