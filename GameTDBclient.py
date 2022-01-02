@@ -27,8 +27,8 @@ def fetch_game_identifiers(language='EN') -> object:
         raise ErrorFetchingData
     for i in result:
         line = i.decode('utf-8')
-        id, title = line.rstrip('\r\n').split(' = ')
-        games_id_dictionary[id] = title
+        identifier, title = line.rstrip('\r\n').split(' = ')
+        games_id_dictionary[identifier] = title
     return games_id_dictionary
 
 
@@ -44,7 +44,10 @@ def get_art_work(language=None, identifier=None, cover3D=True, disc=True) -> obj
     cover3_d_path = os.path.join(os.getcwd(), 'images', 'cover3D')
     art_url = 'http://art.gametdb.com/wii'
 
-    if language == None or identifier == None:
+    os.makedirs(disc_path, exist_ok=True)
+    os.makedirs(cover3_d_path, exist_ok=True)
+
+    if language is None or identifier is None:
         raise InvalidParameters
     else:
         try:

@@ -10,7 +10,7 @@ import filecmp
 
 import GameTDBclient
 
-game_tdb_file = 'data/wiitdb.txt'
+game_tdb_file = os.path.join(os.getcwd(), 'data', 'wiitdb.txt')
 manually_maintained_file = 'data/extraTitles.txt'
 
 
@@ -67,11 +67,11 @@ class GCWiiManager:
 
     def get_game_title_id_dict(self):
         try:
-            with open(game_tdb_file, 'r') as file:
+            with open(game_tdb_file, 'r', encoding="utf-8") as file:
                 game_tdb_data = ast.literal_eval(file.read())
         except FileNotFoundError:
             game_tdb_data = self.refresh_game_tdb_identifiers()
-        with open(manually_maintained_file, 'r') as file:
+        with open(manually_maintained_file, 'r', encoding="utf-8") as file:
             manually_maintained_data = ast.literal_eval(file.read())
         game_tdb_data.update(manually_maintained_data)
         return game_tdb_data
@@ -92,7 +92,7 @@ class GCWiiManager:
     @staticmethod
     def refresh_game_tdb_identifiers():
         game_tdb_data = GameTDBclient.fetch_game_identifiers()
-        with open(game_tdb_file, 'w') as file:
+        with open(game_tdb_file, 'w', encoding="utf-8") as file:
             file.write(str(game_tdb_data))
         return game_tdb_data
 

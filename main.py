@@ -2,8 +2,8 @@ import os
 import sys
 import time
 
-from PyQt5 import QtGui, QtWidgets, Qt
-from PyQt5.QtCore import QThread, pyqtSignal, QStringListModel, QModelIndex, QPoint
+from PyQt5 import QtGui, QtWidgets
+from PyQt5.QtCore import QThread, pyqtSignal, QStringListModel, QModelIndex
 
 import GameTDBclient
 from GCWiiManager import GCWiiManager
