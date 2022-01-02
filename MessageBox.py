@@ -1,5 +1,5 @@
 from PyQt5 import QtWidgets
-from PyQt5.QtWidgets import QSizePolicy
+from PyQt5.QtWidgets import QMessageBox
 
 
 class MessageBox:
@@ -30,8 +30,7 @@ class MessageBox:
         self.msg.show()
 
     def question(self, message):
-        self.message(message)
-        self.msg.setIcon(QtWidgets.QMessageBox.Question)
-        self.msg.setWindowTitle("Question")
-        self.msg.setStandardButtons(QtWidgets.QMessageBox.Ok | QtWidgets.QMessageBox.Cancel)
-        self.msg.show()
+        reply = self.msg.question(None, "Please confirm", message)
+        if reply == QMessageBox.Yes:
+            return True
+        return False

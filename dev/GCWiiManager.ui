@@ -243,7 +243,7 @@
            <bool>true</bool>
           </property>
           <property name="dragDropMode">
-           <enum>QAbstractItemView::DragOnly</enum>
+           <enum>QAbstractItemView::NoDragDrop</enum>
           </property>
           <property name="selectionMode">
            <enum>QAbstractItemView::ExtendedSelection</enum>
@@ -262,7 +262,7 @@
            <enum>Qt::ActionsContextMenu</enum>
           </property>
           <property name="dragDropMode">
-           <enum>QAbstractItemView::DropOnly</enum>
+           <enum>QAbstractItemView::NoDragDrop</enum>
           </property>
           <property name="selectionMode">
            <enum>QAbstractItemView::ExtendedSelection</enum>
@@ -351,6 +351,14 @@
    </property>
    <property name="toolTip">
     <string>Open directory location</string>
+   </property>
+  </action>
+  <action name="action_export_selected">
+   <property name="text">
+    <string>Export selected</string>
+   </property>
+   <property name="toolTip">
+    <string>Delete selected item</string>
    </property>
   </action>
  </widget>

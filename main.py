@@ -2,8 +2,8 @@ import os
 import sys
 import time
 
-from PyQt5 import QtGui, QtWidgets
-from PyQt5.QtCore import QThread, pyqtSignal, QStringListModel, QModelIndex
+from PyQt5 import QtGui, QtWidgets, Qt
+from PyQt5.QtCore import QThread, pyqtSignal, QStringListModel, QModelIndex, QPoint
 
 import GameTDBclient
 from GCWiiManager import GCWiiManager
@@ -15,6 +15,7 @@ class GCWii(Ui_MainWindow):
 
     def __init__(self, source='', destination='', clear_destination=False):
         super(GCWii, self).__init__()
+        self.export_in_progress = False
         app = QtWidgets.QApplication(sys.argv)
         self.MainWindow = QtWidgets.QMainWindow()
         self.max_treads = QThread.idealThreadCount()
@@ -53,8 +54,10 @@ class GCWii(Ui_MainWindow):
         self.listView_destination.addAction(self.action_delete_all_items_in_destination)
         self.listView_source.addAction(self.action_reload_source)
         self.listView_source.addAction(self.action_select_folder_source)
+        self.listView_source.addAction(self.action_export_selected)
         self.exit_btn.clicked.connect(self.quit)
         self.exportSelected_btn.clicked.connect(self.export_selection)
+        self.cancel_btn.setEnabled(False)
         self.cancel_btn.clicked.connect(self.cancel_copy)
         self.label_box.setPixmap(QtGui.QPixmap(self.default_box_artwork))
         self.label_disc.setPixmap(QtGui.QPixmap(self.default_disc_artwork))
@@ -65,6 +68,7 @@ class GCWii(Ui_MainWindow):
         # Source
         self.action_reload_source.triggered.connect(self.update_source_list)
         self.action_select_folder_source.triggered.connect(lambda: self.update_source_list(True))
+        self.action_export_selected.triggered.connect(self.export_selection)
 
         # Destination
         self.action_reload_destination.triggered.connect(self.update_destination_list)
@@ -80,7 +84,8 @@ class GCWii(Ui_MainWindow):
         for item in self.listView_destination.selectedIndexes():
             title = item.data()
             game = self.manager.get_game_from_collection_by_title(title, self.destination_game_collection)
-            self.manager.delete_all_files_in_directory(game["path"])
+            if game:
+                self.manager.delete_all_files_in_directory(game["path"])
         self.update_destination_list()
 
     def export_selection(self):
@@ -94,12 +99,11 @@ class GCWii(Ui_MainWindow):
         self.games_to_export = results
         self.export()
 
-    def get_list_difference(self, source_list, destination_list):
-        # return  [source_list for item in source_list if source_list[] not in l2]
-        pass
-
     def export_all(self):
-        self.games_to_export = self.source_game_collection
+        self.games_to_export = self.manager.get_collection_diff(self.source_game_collection,
+                                                                self.destination_game_collection)
+        if not self.games_to_export:
+            return self.msg.info("Nothing to export")
         self.export()
 
     def update_status_info(self, text=None):
@@ -129,18 +133,19 @@ class GCWii(Ui_MainWindow):
         self.progressBar_destination.setVisible(True)
 
     def update_art_work(self, list_name):
-        code = self.get_selection(list_name)
+        identifier = self.get_selection(list_name)
         box = self.default_box_artwork
         disc = self.default_disc_artwork
-        if code != '0000':
-            region = self.manager.get_game_region(code)
-            try:
-                if GameTDBclient.get_art_work(region, code, True, None):
-                    box = str(os.path.join(self.box_artwork_path, region, code + ".png"))
-                if GameTDBclient.get_art_work(region, code, None, True):
-                    disc = str(os.path.join(self.disc_artwork_path, region, code + ".png"))
-            except GameTDBclient.ErrorFetchingData:
-                print("Unable to fetch artwork for game id: '{}' region: '{}'".format(code, region))
+        if not identifier:
+            return
+        region = self.manager.get_game_region(identifier)
+        try:
+            if GameTDBclient.get_art_work(region, identifier, True, None):
+                box = str(os.path.join(self.box_artwork_path, region, identifier + ".png"))
+            if GameTDBclient.get_art_work(region, identifier, None, True):
+                disc = str(os.path.join(self.disc_artwork_path, region, identifier + ".png"))
+        except GameTDBclient.ErrorFetchingData:
+            print("Unable to fetch artwork for game id: '{}' region: '{}'".format(identifier, region))
         self.label_box.setPixmap(QtGui.QPixmap(box))
         self.label_disc.setPixmap(QtGui.QPixmap(disc))
 
@@ -164,13 +169,18 @@ class GCWii(Ui_MainWindow):
     def update_source_list(self, select=False):
         try:
             if select:
-                self.source_directory = self.select_directory()
-            if self.source_directory == '':
+                directory = self.select_directory()
+                if not directory:
+                    return
+                self.source_directory = directory
+            if not self.source_directory:
                 return
             list_of_found_files = self.manager.find_supported_files(self.source_directory)
             self.source_game_collection = self.manager.generate_game_collection(list_of_found_files)
             self.label_source.setText('Source: ' + self.source_directory)
             list_of_titles = self.manager.get_sorted_game_titles(self.source_game_collection)
+            if not list_of_titles:
+                return self.listView_source.setModel(QStringListModel(['No Wii or GameCube game found']))
             self.listView_source.setModel(QStringListModel(list_of_titles))
             self.listView_source.selectionModel().selectionChanged.connect(lambda: self.update_art_work('source'))
             self.listView_source.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
@@ -181,15 +191,27 @@ class GCWii(Ui_MainWindow):
 
     def update_destination_list(self, select=False):
         try:
-            if select:
-                self.destination_directory = self.select_directory()
-            if self.destination_directory == '':
+            while select:
+                directory = self.select_directory()
+                if not directory:
+                    return
+                if not self.manager.test_directory_writeable(directory):
+                    response = self.msg.question(
+                        "Directory is not writeable.\nDo you want to select a different directory?")
+                    if not response:
+                        return
+                    continue
+                select = False
+                self.destination_directory = directory
+            if not self.destination_directory:
                 return
             list_of_found_files = self.manager.find_supported_files(self.destination_directory)
             self.destination_game_collection = self.manager.generate_game_collection(list_of_found_files)
             self.label_destination.setText('Destination: ' + self.destination_directory)
             self.destination_directory = self.destination_directory
             list_of_titles = self.manager.get_sorted_game_titles(self.destination_game_collection)
+            if not list_of_titles:
+                return self.listView_destination.setModel(QStringListModel(['No Wii or GameCube game found']))
             self.listView_destination.setModel(QStringListModel(list_of_titles))
             self.listView_destination.selectionModel().selectionChanged.connect(
                 lambda: self.update_art_work('destination'))
@@ -200,7 +222,7 @@ class GCWii(Ui_MainWindow):
 
     def export(self):
         if not self.source_game_collection:
-            return self.msg.info("Please select source folder")
+            return self.msg.info("Source list is empty")
         if not self.source_directory:
             return self.msg.info("Please select source folder")
         if not self.destination_directory:
@@ -209,7 +231,12 @@ class GCWii(Ui_MainWindow):
             return self.msg.warning("Source and destination should not be the same directory.")
         if not self.games_to_export:
             return self.msg.info("Please select games from source or click \"Export All\"")
-        print("Processing task")
+        print("\nProcessing")
+        self.export_btn.setDisabled(True)
+        self.exportSelected_btn.setDisabled(True)
+        self.source_btn.setDisabled(True)
+        self.destination_btn.setDisabled(True)
+        self.cancel_btn.setEnabled(True)
         self.show_progress_bars()
 
         # Create a QThread object
@@ -236,12 +263,18 @@ class GCWii(Ui_MainWindow):
         self.update_destination_list()
 
     def handle_worker_finished(self):
-        print("Finished")
+        print("\nFinished")
         self.update_destination_list()
         self.reset_progress_bars()
         self.hide_progress_bars()
         self.worker.quit()
         self.thread.quit()
+        self.export_btn.setDisabled(False)
+        self.exportSelected_btn.setDisabled(False)
+        self.source_btn.setDisabled(False)
+        self.destination_btn.setDisabled(False)
+        self.cancel_btn.setEnabled(False)
+        self.cancel_btn.setText("Cancel")
 
     def quit(self):
         if self.clear_destination:
@@ -252,9 +285,9 @@ class GCWii(Ui_MainWindow):
         try:
             self.worker.stop()
             self.thread.quit()
-            self.reset_progress_bars()
-            self.hide_progress_bars()
-            print("Canceling \n")
+            self.cancel_btn.setText("Cancelling...")
+            self.cancel_btn.setEnabled(False)
+            print("\nCanceling")
         except AttributeError:
             self.msg.info("There is nothing to cancel. ")
 
@@ -278,22 +311,23 @@ class CopyWorker(QThread):
         count = 0
         total = len(self.games_to_export)
         for identifier in self.games_to_export.keys():
-            if self._is_running:
-                if isinstance(self.games_to_export[identifier]["files"], list):
-                    for file in self.games_to_export[identifier]["files"]:
-                        self.processing.emit(file)
-                        self.process_file(file, identifier, True)
-                else:
-                    self.processing.emit(self.games_to_export[identifier]["files"])
-                    self.process_file(self.games_to_export[identifier]["files"], identifier, False)
+            if len(self.games_to_export[identifier]["files"]) > 1:
+                for file in self.games_to_export[identifier]["files"]:
+                    self.process_file(file, identifier, True)
+            else:
+                self.process_file(self.games_to_export[identifier]["files"][0], identifier, False)
             count += 1
             self.progress.emit(int((count * 100) / total))
-            time.sleep(0.5)
+            time.sleep(0.01)
         self.thread_file_progress.quit()
         self.processing.emit('')
         self.finished.emit()
 
     def process_file(self, input_file, identifier, multidisc=False):
+        if not self._is_running:
+            self.processing.emit("Canceling")
+            return
+        self.processing.emit(input_file)
         extension = (os.path.splitext(input_file))[1].lstrip('.').upper()
         game = self.games_to_export.get(identifier)
         folder_name = self.manager.get_destination_normalized_folder_name(game["title"], identifier)
@@ -301,16 +335,13 @@ class CopyWorker(QThread):
             input_file, self.destination_directory, folder_name,
             extension, identifier, multidisc
         )
-        try:
-            self.manager.create_destination_folder(output_file)
 
-            if output_file:
-                self.thread_file_progress.initialize(input_file, output_file)
-                self.thread_file_progress.start()
-                self.manager.copy_file(input_file, output_file)
-        except PermissionError as error:
-            print(error)
-            self.error.emit(error.args[1], f"Can not write to {output_file}")
+        self.manager.create_destination_folder(output_file)
+
+        if output_file:
+            self.thread_file_progress.initialize(input_file, output_file)
+            self.thread_file_progress.start()
+            self.manager.copy_file(input_file, output_file)
 
     def stop(self):
         self._is_running = False
@@ -320,21 +351,14 @@ class CopyWorker(QThread):
 
 
 class ThreadUpdateFileProgress(QThread):
-    count = 0
     progress = pyqtSignal(int)
 
     def __init__(self):
         super(ThreadUpdateFileProgress, self).__init__()
-        ThreadUpdateFileProgress.count += 1
-        print("Number of file progress threads ", ThreadUpdateFileProgress.count)
         self.input_file = None
         self.output_file = None
 
-    def __del__(self):
-        print("Number of file progress threads ", ThreadUpdateFileProgress.count)
-        ThreadUpdateFileProgress.count -= 1
-
-    def initialize(self, input_file=None, output_file=None):
+    def initialize(self, input_file, output_file):
         self.input_file = input_file
         self.output_file = output_file
 

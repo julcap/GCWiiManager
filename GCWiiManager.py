@@ -168,6 +168,16 @@ class GCWiiManager:
             return 0
 
     @staticmethod
+    def get_collection_diff(dict1, dict2):
+        diff = [item for item in dict1.keys() if item not in dict2.keys()]
+        if not diff:
+            return
+        result = dict()
+        for item in diff:
+            result[item] = dict1.get(item)
+        return result
+
+    @staticmethod
     def copy_file(source_file, destination_file):
         if os.path.exists(destination_file) and filecmp.cmp(source_file, destination_file, shallow=True):
             return
@@ -186,6 +196,17 @@ class GCWiiManager:
             except Exception as e:
                 print('Failed to delete %s. Reason: %s' % (file_path, e))
 
+    @staticmethod
+    def test_directory_writeable(directory):
+        try:
+            filename = "abc123abc123.test"
+            with open(os.path.join(directory, filename), 'w') as f:
+                f.write('test')
+            os.unlink(os.path.join(directory, filename))
+            return True
+        except PermissionError:
+            return False
+
     def generate_game_collection(self, full_path_file_list):
         """
         Return a game collection:
@@ -199,21 +220,21 @@ class GCWiiManager:
                     },
             }
         """
+        game_collection = dict()
         if not full_path_file_list:
-            return {'0000': {'title': 'No Wii or GameCube game was found'}}
-        game_collection = {}
+            return game_collection
+
         for file in full_path_file_list:
             identifier = self.get_game_identifier_from_file(file)
             if identifier not in game_collection.keys():
                 game_collection[identifier] = {}
             if "files" not in game_collection[identifier].keys():
-                game_collection[identifier]["files"] = file
+                game_collection[identifier]["files"] = [file]
                 game_collection[identifier]["title"] = self.game_title_id_dict[identifier]
                 game_collection[identifier]["extension"] = os.path.splitext(file)[1].upper().lstrip('.')
                 game_collection[identifier]["path"] = os.path.dirname(file)
-            elif game_collection[identifier]["files"] != file:
-                # Assuming there will not be more than 2 discs
-                game_collection[identifier]["files"] = [game_collection[identifier]["files"], file]
+            elif file not in game_collection[identifier]["files"]:
+                game_collection[identifier]["files"].append(file)
         return game_collection
 
     def get_output_file_absolute_path(self, input_file, destination, folder_name, file_extension, game_identifier,
